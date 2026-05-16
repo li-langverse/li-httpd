@@ -1,0 +1,4 @@
+# Pin lic / lit for reproducible CI (Phase 8-sync).
+[toolchain]
+lic_version = "0.1.0"
+lit_version = "0.1.0"

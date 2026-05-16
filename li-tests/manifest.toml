@@ -1,0 +1,7 @@
+# Package-local tests — also register in monorepo li-tests/manifest.toml when integrated.
+
+[[tests]]
+suite = "smoke"
+file = "smoke/builds.li"
+outcome = "verify_ok"
+note = "T-PKG-li-httpd-smoke"
