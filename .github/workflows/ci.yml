@@ -1,4 +1,5 @@
-# Official package mirror CI — copied by li-new-package --official and push-official-package-repo.
+# Official package mirror CI — required for every li-langverse package repo.
+# Copied by: ./scripts/li-new-package --official  and  ./scripts/ensure-package-ci.sh
 name: CI
 
 on:
@@ -15,14 +16,13 @@ jobs:
   check:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: li-langverse/lic
           path: lic
-          # Pin until main builds (Ctx init in typecheck.cpp); unpin after dev→main merge.
-          ref: 24f851cc7b364da495c62c10ba5b42187e5a1789
+          ref: main
 
       - name: Install LLVM 18
         run: |
@@ -36,7 +36,7 @@ jobs:
           CC: clang-18
           CXX: clang++-18
         run: |
-          chmod +x scripts/build.sh scripts/resolve-lic.sh
+          chmod +x scripts/build.sh scripts/resolve-lic.sh 2>/dev/null || chmod +x scripts/build.sh
           ./scripts/build.sh
 
       - name: lic check + smoke
@@ -44,7 +44,14 @@ jobs:
           LIC: ${{ github.workspace }}/lic/build/compiler/lic/lic
         run: |
           test -x "$LIC"
-          "$LIC" check src/lib.li
+          if [[ -f src/lib.li ]]; then
+            "$LIC" check src/lib.li
+          elif [[ -f src/main.li ]]; then
+            "$LIC" check src/main.li
+          else
+            echo "no src/lib.li or src/main.li"
+            exit 1
+          fi
           if [[ -f li-tests/smoke/builds.li ]]; then
             "$LIC" build li-tests/smoke/builds.li -o /dev/null
           fi
