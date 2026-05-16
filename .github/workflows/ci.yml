@@ -1,0 +1,49 @@
+# Official package mirror CI — copied by li-new-package --official and push-official-package-repo.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: li-langverse/lic
+          path: lic
+          ref: main
+
+      - name: Install LLVM 18
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang-18 llvm-18-dev zlib1g-dev libzstd-dev python3
+
+      - name: Build lic
+        working-directory: lic
+        env:
+          LLVM_DIR: /usr/lib/llvm-18/lib/cmake/llvm
+          CC: clang-18
+          CXX: clang++-18
+        run: |
+          chmod +x scripts/build.sh scripts/resolve-lic.sh
+          ./scripts/build.sh
+
+      - name: lic check + smoke
+        env:
+          LIC: ${{ github.workspace }}/lic/build/compiler/lic/lic
+        run: |
+          test -x "$LIC"
+          "$LIC" check src/lib.li
+          if [[ -f li-tests/smoke/builds.li ]]; then
+            "$LIC" build li-tests/smoke/builds.li -o /dev/null
+          fi
