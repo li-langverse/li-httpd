@@ -27,20 +27,12 @@ jobs:
       - name: Enforce def syntax (no bare proc)
         run: |
           set -euo pipefail
-          shopt -s globstar nullglob
-          bad=0
-          while IFS= read -r -d '' f; do
-            while IFS= read -r line; do
-              if [[ "$line" =~ ^[[:space:]]*proc[[:space:]] ]]; then
-                echo "error: $f: use def, not proc: $line"
-                bad=1
-              elif [[ "$line" =~ async[[:space:]]+proc[[:space:]] ]]; then
-                echo "error: $f: use async def: $line"
-                bad=1
-              fi
-            done < "$f"
-          done < <(find . -name '*.li' -type f -print0)
-          [[ "$bad" -eq 0 ]]
+          chmod +x lic/scripts/check-li-def-syntax.sh
+          # Package tree only — lic checkout includes compile_fail proc tests.
+          lic/scripts/check-li-def-syntax.sh src
+          if [[ -d li-tests ]]; then
+            lic/scripts/check-li-def-syntax.sh li-tests
+          fi
 
       - name: Install LLVM 18
         run: |

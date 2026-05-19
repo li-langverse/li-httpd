@@ -1,11 +1,7 @@
-# PKG-li-httpd — composable HTTP gateway API (M1 aspirational; not fully implemented)
-#
-# Target: one import + serve/stop/ready from any proc main. See docs/ecosystem/composable-by-default.md
 
 type HttpdConfig = object
   public port: int
 
-# Stub handle is an int id (0) until object literals and HttpdHandle wiring land.
 type HttpdHandle = object
   public id: int
 

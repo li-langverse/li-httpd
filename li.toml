@@ -1,5 +1,5 @@
 [package]
-name = "li-httpd"
+name = "li-net-httpd"
 version = "0.1.0"
 edition = "2026"
 license = "Apache-2.0 OR MIT"
@@ -10,11 +10,13 @@ description = "Li package li-httpd"
 # registry = "1.0.0"             # lip 8d+
 
 [package.metadata.li]
+github_repo = "li-net-httpd"
+import_name = "net.httpd"
 min_lic = "0.1.0"
 maintainer = "li-langverse"
-pkg_id = "PKG-li-httpd"
+pkg_id = "PKG-li-net-httpd"
 
 [package.repository]
-url = "https://github.com/li-langverse/li-httpd"
-documentation = "https://li-langverse.github.io/li-language/ecosystem/li-httpd/"
-changelog = "https://github.com/li-langverse/li-httpd/blob/main/CHANGELOG.md"
+url = "https://github.com/li-langverse/li-net-httpd"
+documentation = "https://li-langverse.github.io/li-language/ecosystem/li-net-httpd/"
+changelog = "https://github.com/li-langverse/li-net-httpd/blob/main/CHANGELOG.md"

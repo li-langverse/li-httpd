@@ -1,4 +1,3 @@
-# Thin demo — composable API lives in lib.li (import li_httpd from other programs).
 
 import li_httpd
 
