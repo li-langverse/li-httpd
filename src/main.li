@@ -1,0 +1,10 @@
+# Thin demo — composable API lives in lib.li (import li_httpd from other programs).
+
+import li_httpd
+
+def main() -> int
+  requires true
+  ensures result == 0
+  decreases 0
+=
+  return httpd_tag()

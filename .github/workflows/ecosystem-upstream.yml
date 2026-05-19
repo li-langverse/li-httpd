@@ -17,7 +17,7 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
       - name: Open tracking issue
         env:
           GH_TOKEN: ${{ github.token }}
