@@ -10,7 +10,7 @@
 
 ## Exports (v1)
 
-Document public `proc` names and types here as the API stabilizes.
+Document public `def` names and types here as the API stabilizes.
 
 ## Proof / coverage tier
 
