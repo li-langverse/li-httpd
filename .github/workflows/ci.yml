@@ -36,8 +36,8 @@ jobs:
 
       - name: Install LLVM 22
         run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang-22 llvm-22-dev zlib1g-dev libzstd-dev python3
+          chmod +x lic/scripts/ci-install-llvm.sh
+          sudo LI_LLVM_MAJOR=22 bash lic/scripts/ci-install-llvm.sh
 
       - name: Build lic
         working-directory: lic
