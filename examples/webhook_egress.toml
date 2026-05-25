@@ -1,0 +1,19 @@
+# m2-webhook-egress-runtime — SSRF allowlist on X-Li-Webhook-Url egress
+[server]
+listen = "127.0.0.1:18170"
+document_root = "./public"
+
+[webhooks]
+allow = ["https://hooks.example.com/v1/callback"]
+
+[limits]
+max_body = "64k"
+max_header = "16k"
+rate_limit_rps = 10000
+rate_limit_burst = 20000
+
+[upstreams.api]
+peers = ["http://127.0.0.1:18171"]
+
+[routes]
+"POST /dispatch" = "proxy:api"

@@ -1,0 +1,25 @@
+# m2-tls-h2-runtime — TLS 1.3 terminate + HTTP/2 ALPN smoke (GET /health)
+[server]
+listen = "127.0.0.1:18443"
+document_root = "./public"
+
+[server.tls]
+mode = "self_signed"
+cert_dir = "./certs-tls-h2"
+min_protocol = "1.3"
+terminate = true
+
+[server.tls.self_signed]
+dev = true
+valid_days = 30
+
+[server.http2]
+enabled = true
+max_concurrent_streams = 64
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+
+[routes]
+"GET /health" = "static:healthcheck"

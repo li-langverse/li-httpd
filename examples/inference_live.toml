@@ -1,0 +1,22 @@
+# M1.5 inference live — OpenAI /v1 proxy with OTel, rate limits (test-m15-inference-live.sh)
+[server]
+listen = "127.0.0.1:18130"
+document_root = "./public"
+workers = 1
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 2
+rate_limit_burst = 2
+stream_idle_timeout = "120s"
+stream_max_duration = "600s"
+concurrent_streams = 32
+
+[upstreams.llm]
+peers = ["http://127.0.0.1:18131"]
+
+[routes]
+"GET /health" = "static:healthcheck"
+"POST /v1/chat/completions require=traceparent" = "proxy:llm"
+"POST /v1/* require=traceparent" = "proxy:llm"
