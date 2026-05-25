@@ -52,6 +52,7 @@ jobs:
       - name: lic check + smoke (monorepo workspace)
         env:
           LIC: ${{ github.workspace }}/lic/build/compiler/lic/lic
+          LI_REPO_ROOT: ${{ github.workspace }}/lic
         run: |
           set -euo pipefail
           test -x "$LIC"
