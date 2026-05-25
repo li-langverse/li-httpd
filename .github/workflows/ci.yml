@@ -22,7 +22,7 @@ jobs:
         with:
           repository: li-langverse/lic
           path: lic
-          ref: main
+          ref: ${{ github.head_ref == 'cursor/httpd-plan-continue' && 'cursor/httpd-plan-continue' || 'main' }}
 
       - name: Enforce def syntax (no bare proc)
         run: |
