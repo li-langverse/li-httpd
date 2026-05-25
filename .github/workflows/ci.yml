@@ -49,19 +49,19 @@ jobs:
           chmod +x scripts/build.sh scripts/resolve-lic.sh 2>/dev/null || chmod +x scripts/build.sh
           ./scripts/build.sh
 
-      - name: lic check + smoke
+      - name: lic check + smoke (monorepo workspace)
         env:
           LIC: ${{ github.workspace }}/lic/build/compiler/lic/lic
         run: |
+          set -euo pipefail
           test -x "$LIC"
-          if [[ -f src/lib.li ]]; then
-            "$LIC" check src/lib.li
-          elif [[ -f src/main.li ]]; then
-            "$LIC" check src/main.li
-          else
-            echo "no src/lib.li or src/main.li"
-            exit 1
+          PKG="${GITHUB_WORKSPACE}/lic/packages/li-net-httpd"
+          mkdir -p "$PKG/src" "$PKG/li-tests/smoke"
+          rsync -a src/ "$PKG/src/"
+          if [[ -d li-tests ]]; then
+            rsync -a li-tests/ "$PKG/li-tests/"
           fi
-          if [[ -f li-tests/smoke/builds.li ]]; then
-            "$LIC" build li-tests/smoke/builds.li -o /dev/null
+          "$LIC" check "$PKG/src/lib.li"
+          if [[ -f "$PKG/li-tests/smoke/builds.li" ]]; then
+            "$LIC" build "$PKG/li-tests/smoke/builds.li" -o /dev/null
           fi
