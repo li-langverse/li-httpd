@@ -1,0 +1,36 @@
+---
+description: All agent work via feature branch and PR — merge only after CI green and human review
+alwaysApply: true
+---
+
+# PR-only workflow (mandatory)
+
+Agents **never** push directly to protected branches (`main`, `dev`, `master`). GitHub ruleset **Li: protected branches** enforces this org-wide (see `roadmap/scripts/apply-org-branch-protection.sh`).
+
+## Required flow
+
+1. Create a feature branch from the default branch.
+2. Commit changes on that branch.
+3. Open a PR (`gh pr create` is allowed).
+4. Ensure **CI is green** on the PR.
+5. **Stop** — do not `gh pr merge` or merge your own PR. A human or designated reviewer merges after review.
+
+## After verified work (`lic`)
+
+1. Commit on your feature branch with a clear message (`feat(phase-N): …` or `chore: …`).
+2. Push the branch and open/update the PR:
+   ```bash
+   git push -u origin HEAD
+   gh pr create --fill || gh pr view --web
+   ```
+3. Uses [`scripts/with-github-env.sh`](../../scripts/with-github-env.sh) when available. Never commit tokens.
+
+**Opt out (rare):** `LI_HOOK_ALLOW=1` for intentional direct-push (emergency only).
+
+## Cross-repo
+
+- **Roadmap governance** (`docs/**`, `proposals/**`): human merges.
+- **Agent kit** (`agent-kit/**`): reviewer merges after CI; then run `../roadmap/scripts/install-agent-kit.sh <repo>` in a follow-up PR to code repos.
+- **Benchmarks dashboard**: see [li-langverse/benchmarks](https://github.com/li-langverse/benchmarks) after perf changes.
+
+Do **not** stop with "please push" — push **your branch** and open the PR, then ask for review.
