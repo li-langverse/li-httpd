@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- GitHub repo description and README tagline (WP-A4); canonical string in `.github/repo-description`.
+
 ### Added
 
 - Initial scaffold via `scripts/li-new-package` (PKG-li-httpd).

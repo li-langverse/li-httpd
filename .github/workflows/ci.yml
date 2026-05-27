@@ -1,5 +1,6 @@
 # Official package mirror CI — required for every li-langverse package repo.
 # Copied by: ./scripts/li-new-package --official  and  ./scripts/ensure-package-ci.sh
+# LLVM 22 via ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22 (apt.llvm.org; not noble default packages).
 name: CI
 
 on:
@@ -12,13 +13,40 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-jobs:
-  check:
-    runs-on: ubuntu-24.04
-    steps:
-      - uses: actions/checkout@v6
+permissions:
+  contents: read
+  packages: read
 
-      - uses: actions/checkout@v6
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'li-tests/**'
+              - '**/*.li'
+
+  check:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
+    runs-on: ubuntu-24.04
+    container:
+      image: ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22
+    env:
+      LLVM_DIR: /usr/lib/llvm-22/lib/cmake/llvm
+      CC: clang-22
+      CXX: clang++-22
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
         with:
           repository: li-langverse/lic
           path: lic
@@ -28,23 +56,13 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x lic/scripts/check-li-def-syntax.sh
-          # Package tree only — lic checkout includes compile_fail proc tests.
           lic/scripts/check-li-def-syntax.sh src
           if [[ -d li-tests ]]; then
             lic/scripts/check-li-def-syntax.sh li-tests
           fi
 
-      - name: Install LLVM 18
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build clang-18 llvm-18-dev zlib1g-dev libzstd-dev python3
-
       - name: Build lic
         working-directory: lic
-        env:
-          LLVM_DIR: /usr/lib/llvm-18/lib/cmake/llvm
-          CC: clang-18
-          CXX: clang++-18
         run: |
           chmod +x scripts/build.sh scripts/resolve-lic.sh 2>/dev/null || chmod +x scripts/build.sh
           ./scripts/build.sh
@@ -65,3 +83,10 @@ jobs:
           if [[ -f li-tests/smoke/builds.li ]]; then
             "$LIC" build li-tests/smoke/builds.li -o /dev/null
           fi
+
+  docs-only:
+    needs: changes
+    if: needs.changes.outputs.code != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "No src/li-tests changes; skipping lic build."
