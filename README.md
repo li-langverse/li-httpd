@@ -38,6 +38,13 @@ lic build src/main.li -o li-httpd-demo   # optional thin demo
 
 From the monorepo root, ensure `lic` is built: `./scripts/build.sh`.
 
+## Docs
+
+| Doc | Content |
+|-----|---------|
+| [Published handbook (li-httpd)](https://li-langverse.github.io/li-language/ecosystem/li-httpd/) | Org status on **li-language** Pages (after **lic** deploy) |
+| [docs/handbook.md](docs/handbook.md) | Cross-links to httpd plan and provability gaps |
+
 ## Traceability
 
 | ID | Link |
