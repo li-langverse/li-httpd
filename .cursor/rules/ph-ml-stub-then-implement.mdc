@@ -1,0 +1,42 @@
+---
+description: PH-ML + GPU — stubs only as Wave/step 1; same branch must land real behavior or blocked with evidence
+alwaysApply: false
+globs: packages/li-ml/**,packages/li-ml-rl/**,packages/lig/**,runtime/**,docs/**/PH-ML*,docs/release-notes/*ph-ml*
+---
+
+# PH-ML stub-then-implement (org default)
+
+Stubs are **Wave/step 1 only** within the same battle plan / PR series — never the final deliverable for a WP marked **implement** in the repo's PH-ML GPU battle plan.
+
+## Same PR / branch requirements
+
+Every stub commit or stub-heavy PR must include **before merge**:
+
+| Artifact | Content |
+|----------|---------|
+| **Stub→Real table** | In the release note: stub behavior \| real behavior \| verification command |
+| **Tracker row** | `stub` → `in_progress` → `done` (or `blocked` + hardware/dependency reason) — never leave at `stub` when WP is implement-tier |
+
+## Forbidden exit states
+
+- Marking WP **done** while only returning constants, fake `gpu_timing_ns`, or `return -1` with no documented follow-up commit / blocker.
+- `N/A` timing in bench JSON **without** a release-note row explaining the next WP that removes `N/A`.
+- Closing implement WPs with only RFC text when the battle plan proof gate names `lic check` or a bench id.
+
+## Allowed stub patterns (honest)
+
+- `N/A` / `blocked` in bench JSON when no GPU hardware.
+- Compile-only smokes (`compile_ok`, `compile_fail` with `expected_substr`).
+- RFC / design docs with tracker `blocked` or `partial`, not `done`.
+- Host launch status `1` (emit stub) or `0` (CPU/SPIR-V validation path) **without** claiming GPU nanoseconds.
+
+## Same-plan wiring rule
+
+If you add `*_stub.li`, `*_stub.c`, or `workload_class = "stub"`:
+
+- The **next commit on the same branch** must replace or wire real behavior, **or**
+- Add an explicit battle-plan subsection + tracker `blocked` with dependency (Vulkan lavapipe, ROCm CI, dynamic `tensor`, etc.).
+
+## Repo overlays
+
+**lic** installs an extended overlay copy via `overlays/lic/.cursor/rules/ph-ml-stub-then-implement.mdc` with lic-specific paths and cross-links.
