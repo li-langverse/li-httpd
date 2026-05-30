@@ -1,0 +1,50 @@
+---
+description: Mandatory ecosystem gates — vision, functionality, security, performance, CVE, coverage tiers
+alwaysApply: true
+---
+
+# Li ecosystem gates (mandatory)
+
+Agents **must** follow these before and during work. Style and structure are flexible; **gates are not**.
+
+## Read order (start of session)
+
+1. `../roadmap/docs/ecosystem/engineering-standards.md` (or sibling `roadmap/` checkout)
+2. `../roadmap/docs/ecosystem/vision-and-roadmap.md` — **north star:** HPC + scientific computing + AI
+3. `../roadmap/docs/ecosystem/agent-coordination.md` — `.li-agent-coord.json`, claims
+4. `docs/superpowers/plans/2026-05-14-li-master-plan.md` in **`lic`** — current **PH-** phase
+5. [Benchmarks dashboard](https://li-langverse.github.io/benchmarks/) — perf status
+6. Latest **release notes** in target repo — `CHANGELOG.md` + `docs/release-notes/` (see **li-release-notes.mdc**)
+
+## Three gates (every change)
+
+| Gate | Evidence |
+|------|----------|
+| **Functionality** | `li-tests` / `lit` green; REQ/PH ids; contracts when phase requires |
+| **Security** | Relevant CVE/CWE rows; `run_security.sh` / tier5 exploits; no trusted creep |
+| **Performance** | Benchmark row or documented N/A; [benchmarks dashboard](https://li-langverse.github.io/benchmarks/) |
+
+## Coverage tiers
+
+| Scope | Line coverage |
+|-------|---------------|
+| **`std/**` in `lic`** | **100%** — `scripts/check-stdlib-coverage.sh` |
+| **`lip publish` / official packages** | **≥80%** — `lit test --coverage` |
+| **Experimental monorepo package** | SHOULD ≥80% before org promote |
+
+## Design discipline
+
+- New ecosystem feature: survey **2–4** mature systems; document **Learned from**; adapt to easy + AI-first + provable + fast.
+- Cross-repo or pillar vision → **master plan** + roadmap **proposal**; not package README only.
+- Org **secrets** and **new repos** → ask human. Branch protection is automated: `./scripts/apply-org-branch-protection.sh` (roadmap).
+
+## Escalate (do not do alone)
+
+- Lower coverage tiers, skip CVE tests, weaken bench thresholds
+- New `trusted.lean` axioms
+- Changing pillar priority or master plan phase order
+- Weakening `agent-kit/hooks/guard-*.sh`
+
+## Hooks
+
+Synced from `li-langverse/roadmap` agent-kit via `./scripts/sync-agent-kit.sh`.
