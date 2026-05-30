@@ -44,7 +44,7 @@ From the monorepo root, ensure `lic` is built: `./scripts/build.sh`.
 | Org repo | https://github.com/li-langverse/li-httpd |
 | Governance | [Ecosystem governance](https://li-langverse.github.io/li-language/ecosystem/governance/) |
 
-See `PUBLISH.md` and `docs/traceability.md`.
+See `PUBLISH.md`, [docs/handbook.md](docs/handbook.md), and [live handbook](https://li-langverse.github.io/li-httpd/).
 
 ## License
 
