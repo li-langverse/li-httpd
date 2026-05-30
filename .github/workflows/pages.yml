@@ -27,7 +27,7 @@ jobs:
       - name: Verify site artifact
         run: test -f site/index.html
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         if: github.event_name != 'pull_request'
         with:
           path: site
