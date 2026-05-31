@@ -1,0 +1,16 @@
+# m2-websocket-runtime — WebSocket upgrade proxied to upstream
+[server]
+listen = "127.0.0.1:18160"
+document_root = "./public"
+
+[limits]
+max_body = "64k"
+max_header = "16k"
+rate_limit_rps = 10000
+rate_limit_burst = 20000
+
+[upstreams.ws_backend]
+peers = ["http://127.0.0.1:18161"]
+
+[routes]
+"GET /ws/tools require=websocket" = "proxy:ws_backend"

@@ -1,7 +1,5 @@
 # li-httpd
 
-*Proved HTTP gateway for the Li language — AI agents and HPC scientific serving (PH-H).*
-
 Proved AI/agent HTTP gateway (Phase H). **M1 not implemented** — blocked on full **2e–2f** Lean gate; see [httpd plan](../../docs/superpowers/plans/2026-05-16-li-httpd-plan.md) and [httpd prerequisites](../../docs/ecosystem/httpd-prerequisites.md).
 
 **Composable by default:** `import net.httpd` from any program; lifecycle lives in `src/lib.li`. `src/main.li` is a thin demo only. See [composable-by-default](../../docs/ecosystem/composable-by-default.md).
@@ -38,13 +36,6 @@ lic build src/main.li -o li-httpd-demo   # optional thin demo
 
 From the monorepo root, ensure `lic` is built: `./scripts/build.sh`.
 
-## Docs
-
-| Doc | Content |
-|-----|---------|
-| [Published handbook (li-httpd)](https://li-langverse.github.io/li-language/ecosystem/li-httpd/) | Org status on **li-language** Pages (after **lic** deploy) |
-| [docs/handbook.md](docs/handbook.md) | Cross-links to httpd plan and provability gaps |
-
 ## Traceability
 
 | ID | Link |
@@ -53,7 +44,7 @@ From the monorepo root, ensure `lic` is built: `./scripts/build.sh`.
 | Org repo | https://github.com/li-langverse/li-httpd |
 | Governance | [Ecosystem governance](https://li-langverse.github.io/li-language/ecosystem/governance/) |
 
-See `PUBLISH.md`, [docs/handbook.md](docs/handbook.md), and [live handbook](https://li-langverse.github.io/li-httpd/).
+See `PUBLISH.md` and `docs/traceability.md`.
 
 ## License
 

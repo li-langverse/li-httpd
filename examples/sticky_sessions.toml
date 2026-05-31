@@ -1,0 +1,17 @@
+# gap-lb-sticky-sessions — ip_hash affinity across two loopback peers (test-lb-sticky-sessions.sh)
+[server]
+listen = "127.0.0.1:18140"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 1000
+rate_limit_burst = 2000
+
+[upstreams.api]
+balance = "ip_hash"
+peers = ["http://127.0.0.1:18151", "http://127.0.0.1:18152"]
+
+[routes]
+"GET /*" = "proxy:api"

@@ -1,0 +1,27 @@
+# m2-circuit-queue-runtime — queue depth 429 + circuit breaker on live li-httpd
+[server]
+listen = "127.0.0.1:18150"
+document_root = "./public"
+
+[route.queue]
+max_depth = 1
+max_wait = "30s"
+retry_after = "3s"
+
+[circuit_breaker]
+error_threshold = 2
+window_sec = 30
+open_duration_sec = 60
+half_open_probes = 1
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 10000
+rate_limit_burst = 20000
+
+[upstreams.api]
+peers = ["http://127.0.0.1:18151"]
+
+[routes]
+"GET /*" = "proxy:api"
