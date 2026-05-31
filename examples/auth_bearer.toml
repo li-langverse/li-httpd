@@ -1,0 +1,15 @@
+# M1 — Bearer API key gate (dev keys; hash at edge in M1.5)
+[server]
+listen = "127.0.0.1:39220"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+
+[auth]
+require_bearer = true
+keys = ["dev-agent-key", "bench-key-2"]
+
+[routes]
+"GET /index.html" = "static"

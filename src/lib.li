@@ -1,34 +1,1078 @@
+import net
+import std.runtime.seam
 
-type HttpdConfig = object
-  public port: int
+def hdr_end_at(buf: var ptr, start: var int, limit: var int) raises IO -> int
+  requires 0 <= start
+  requires start <= limit
+  ensures true
+  decreases limit - start
+=
+  var i: int = start
+  while i + 3 < limit:
+    if net_byte_at_i(buf, i) == 13:
+      if net_byte_at_i(buf, i + 1) == 10:
+        if net_byte_at_i(buf, i + 2) == 13:
+          if net_byte_at_i(buf, i + 3) == 10:
+            return i + 4
+    i = i + 1
+  return -1
 
-type HttpdHandle = object
-  public id: int
+def buf_has_connection_close(buf: var ptr, hdr_end: var int) raises IO -> int
+  requires 0 <= hdr_end
+  ensures true
+  decreases hdr_end
+=
+  var i: int = 0
+  while i + 10 < hdr_end:
+    if net_byte_at_i(buf, i) == 67:
+      if net_byte_at_i(buf, i + 10) == 58:
+        var j: int = i + 11
+        while j < hdr_end:
+          if net_byte_at_i(buf, j) == 99:
+            return 1
+          j = j + 1
+    i = i + 1
+  return 0
+
+def parse_get_path(buf: var ptr, req_len: var int) raises IO, Alloc -> ptr
+  requires 4 <= req_len
+  ensures true
+  decreases req_len
+=
+  if net_byte_at_i(buf, 0) != 71:
+    return net_lit_index_html_i()
+  if net_byte_at_i(buf, 3) != 32:
+    return net_lit_index_html_i()
+  var i: int = 4
+  while i < req_len:
+    if net_byte_at_i(buf, i) == 32:
+      if i == 4:
+        return net_lit_index_html_i()
+      return bytes_slice_i(buf, 4, i - 4)
+    i = i + 1
+  return net_lit_index_html_i()
+
+def filepath_for_request(root: var ptr, path: var ptr) raises Alloc, IO -> ptr
+  requires true
+  ensures true
+  decreases 0
+=
+  var plen: int = bytes_len_i(path)
+  if plen == 1:
+    if net_byte_at_i(path, 0) == 47:
+      return str_cat2_i(root, net_lit_index_html_i())
+  return str_cat2_i(root, path)
+
+def send_error(conn: var int, status: int, keep_alive: var int) raises Net, Alloc, IO -> int
+  requires conn >= 0
+  ensures true
+  decreases 0
+=
+  var body: ptr = net_buf_alloc(16)
+  var blen: int = net_fill_not_found_i(body)
+  var hdr: ptr = net_buf_alloc(512)
+  var hlen: int = httpd_write_response_hdr_i(hdr, 512, status, 9, keep_alive)
+  if hlen < 0:
+    net_buf_free(hdr)
+    net_buf_free(body)
+    return -1
+  var s1: int = tcp_send_buf(conn, hdr, 0, hlen)
+  var s2: int = tcp_send_buf(conn, body, 0, blen)
+  net_buf_free(hdr)
+  net_buf_free(body)
+  if s1 < 0:
+    return -1
+  return s2
+
+def send_static_large_keep(conn: var int, file_fd: var int, sz: var int) raises Net, Alloc, IO -> int
+  requires conn >= 0
+  ensures true
+  decreases 0
+=
+  var body_len: int = sz
+  var ka: int = 1
+  var hdr: ptr = net_buf_alloc(512)
+  var hlen: int = httpd_write_response_hdr_i(hdr, 512, 200, body_len, ka)
+  if hlen < 0:
+    net_buf_free(hdr)
+    net_close_fd(file_fd)
+    var ka: int = 1
+    return send_error(conn, 404, ka)
+  var rc: int = tcp_send_buf(conn, hdr, 0, hlen)
+  net_buf_free(hdr)
+  if rc < 0:
+    net_close_fd(file_fd)
+    return -1
+  var send_sz: int = sz
+  rc = net_sendfile_fd(conn, file_fd, send_sz)
+  net_close_fd(file_fd)
+  return rc
+
+def send_static_small_keep(conn: var int, file_fd: var int, sz: var int) raises Net, Alloc, IO -> int
+  requires conn >= 0
+  ensures true
+  decreases 0
+=
+  var body_len: int = sz
+  var ka: int = 1
+  var hdr: ptr = net_buf_alloc(512)
+  var hlen: int = httpd_write_response_hdr_i(hdr, 512, 200, body_len, ka)
+  if hlen < 0:
+    net_buf_free(hdr)
+    net_close_fd(file_fd)
+    var ka_err: int = 1
+    return send_error(conn, 404, ka_err)
+  var alloc_sz: int = sz
+  var body: ptr = net_buf_alloc(alloc_sz)
+  var read_n: int = sz
+  var rd: int = net_read_fd(file_fd, body, read_n)
+  net_close_fd(file_fd)
+  if rd < 0:
+    net_buf_free(hdr)
+    net_buf_free(body)
+    var ka2: int = 1
+    return send_error(conn, 404, ka2)
+  var send_n: int = sz
+  var rc: int = tcp_send_coalesce_i(conn, hdr, hlen, body, send_n)
+  net_buf_free(hdr)
+  net_buf_free(body)
+  return rc
+
+def send_static_keep(conn: var int, filepath: var ptr) raises Net, Alloc, IO -> int
+  requires conn >= 0
+  ensures true
+  decreases 0
+=
+  var file_fd: int = net_open_readonly_i(filepath)
+  if file_fd < 0:
+    var ka: int = 1
+    return send_error(conn, 404, ka)
+  var sz: int = net_fstat_size(file_fd)
+  if sz < 0:
+    net_close_fd(file_fd)
+    var ka2: int = 1
+    return send_error(conn, 404, ka2)
+  if sz > 16384:
+    return send_static_large_keep(conn, file_fd, sz)
+  return send_static_small_keep(conn, file_fd, sz)
+
+def send_static_large_close(conn: var int, file_fd: var int, sz: var int) raises Net, Alloc, IO -> int
+  requires conn >= 0
+  ensures true
+  decreases 0
+=
+  var body_len: int = sz
+  var ka: int = 0
+  var hdr: ptr = net_buf_alloc(512)
+  var hlen: int = httpd_write_response_hdr_i(hdr, 512, 200, body_len, ka)
+  if hlen < 0:
+    net_buf_free(hdr)
+    net_close_fd(file_fd)
+    var kb: int = 0
+    return send_error(conn, 404, kb)
+  var rc: int = tcp_send_buf(conn, hdr, 0, hlen)
+  net_buf_free(hdr)
+  if rc < 0:
+    net_close_fd(file_fd)
+    return -1
+  var send_sz: int = sz
+  rc = net_sendfile_fd(conn, file_fd, send_sz)
+  net_close_fd(file_fd)
+  return rc
+
+def send_static_small_close(conn: var int, file_fd: var int, sz: var int) raises Net, Alloc, IO -> int
+  requires conn >= 0
+  ensures true
+  decreases 0
+=
+  var body_len: int = sz
+  var ka: int = 0
+  var hdr: ptr = net_buf_alloc(512)
+  var hlen: int = httpd_write_response_hdr_i(hdr, 512, 200, body_len, ka)
+  if hlen < 0:
+    net_buf_free(hdr)
+    net_close_fd(file_fd)
+    var kb: int = 0
+    return send_error(conn, 404, kb)
+  var alloc_sz: int = sz
+  var body: ptr = net_buf_alloc(alloc_sz)
+  var read_n: int = sz
+  var rd: int = net_read_fd(file_fd, body, read_n)
+  net_close_fd(file_fd)
+  if rd < 0:
+    net_buf_free(hdr)
+    net_buf_free(body)
+    var kb2: int = 0
+    return send_error(conn, 404, kb2)
+  var send_n: int = sz
+  var rc: int = tcp_send_coalesce_i(conn, hdr, hlen, body, send_n)
+  net_buf_free(hdr)
+  net_buf_free(body)
+  return rc
+
+def send_static_close(conn: var int, filepath: var ptr) raises Net, Alloc, IO -> int
+  requires conn >= 0
+  ensures true
+  decreases 0
+=
+  var file_fd: int = net_open_readonly_i(filepath)
+  if file_fd < 0:
+    var kb: int = 0
+    return send_error(conn, 404, kb)
+  var sz: int = net_fstat_size(file_fd)
+  if sz < 0:
+    net_close_fd(file_fd)
+    var kb2: int = 0
+    return send_error(conn, 404, kb2)
+  if sz > 16384:
+    return send_static_large_close(conn, file_fd, sz)
+  return send_static_small_close(conn, file_fd, sz)
+
+def serve_one_request(conn: var int, root: var ptr, buf: var ptr, slot: var int, req_len: var int) raises Net, Alloc, IO -> int
+  requires conn >= 0
+  requires 0 <= slot
+  requires 0 < req_len
+  ensures true
+  decreases req_len
+=
+  var hdr_end: int = hdr_end_at(buf, 0, req_len)
+  var path: ptr = parse_get_path(buf, req_len)
+  var keep_alive: int = 1
+  if hdr_end > 0:
+    if buf_has_connection_close(buf, hdr_end) == 1:
+      keep_alive = 0
+  var plen: int = bytes_len_i(path)
+  var use_idx: int = 1
+  if plen > 1:
+    use_idx = 0
+  if plen == 1:
+    if net_byte_at_i(path, 0) != 47:
+      use_idx = 0
+  var cache_ok: int = httpd_cache_ready_i()
+  if use_idx == 1:
+    if cache_ok == 1:
+      var rc_cached: int = httpd_reply_cached_index_i(conn, slot, keep_alive)
+      if rc_cached < 0:
+        return 1
+      if keep_alive == 0:
+        return 1
+      return 0
+  var fp_full: ptr = str_cat2_i(root, path)
+  if keep_alive == 1:
+    var rc_full: int = send_static_keep(conn, fp_full)
+    if rc_full < 0:
+      return 1
+    return 0
+  var rc_close_full: int = send_static_close(conn, fp_full)
+  if rc_close_full < 0:
+    return 1
+  return 1
+
+def try_drain_slot(conn: var int, root: var ptr, slot: var int) raises Net, Alloc, IO -> int
+  requires conn >= 0
+  requires 0 <= slot
+  ensures true
+  decreases 0
+=
+  var filled: int = net_buf_len(slot)
+  if filled <= 0:
+    return 0
+  var buf: ptr = net_slot_buf_ptr(slot)
+  var hdr_done: int = hdr_end_at(buf, 0, filled)
+  if hdr_done < 0:
+    return 0
+  var close_after: int = serve_one_request(conn, root, buf, slot, hdr_done)
+  if close_after == 1:
+    return -1
+  return hdr_done
+
+def conn_close(epfd: var int, conn: var int, slot: var int) raises Net, IO -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  if epfd > 0:
+    epoll_ctl_del_i(epfd, conn)
+  tcp_close(conn)
+  httpd_slot_free(slot)
+  return 0
+
+def accept_batch(epfd: var int, listen_fd: var int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  var accepted: int = 0
+  var keep: int = 1
+  while keep == 1:
+    var conn: int = tcp_accept_nb(listen_fd)
+    if conn < 0:
+      return accepted
+    net_set_nonblock(conn)
+    tcp_tune_client(conn)
+    var slot: int = httpd_slot_alloc(conn)
+    if slot < 0:
+      tcp_close(conn)
+      return accepted
+    if epoll_ctl_add_i(epfd, conn) < 0:
+      tcp_close(conn)
+      httpd_slot_free(slot)
+      return accepted
+    accepted = accepted + 1
+    keep = 1
+  return accepted
+
+def handle_conn_io(epfd: var int, conn: var int, slot: var int, root: var ptr) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  requires 0 <= slot
+  ensures true
+  decreases 0
+=
+  var cache_ok: int = httpd_cache_ready_i()
+  var running: int = 1
+  while running == 1:
+    var r: int = tcp_recv_slot(conn, slot, 16384)
+    if r == 0:
+      return conn_close(epfd, conn, slot)
+    if r == -2:
+      return conn_close(epfd, conn, slot)
+    if r == -1:
+      return 0
+    if cache_ok == 1:
+      var drained: int = httpd_drain_slot_i(conn, slot)
+      if drained < 0:
+        return conn_close(epfd, conn, slot)
+    if cache_ok == 0:
+      var draining: int = 1
+      while draining == 1:
+        var d: int = try_drain_slot(conn, root, slot)
+        if d < 0:
+          return conn_close(epfd, conn, slot)
+        if d == 0:
+          draining = 0
+        if d > 0:
+          net_slot_consume(slot, d)
+  return 0
+
+def httpd_epoll_serve(port: var int, root: var ptr) raises Net, Alloc, IO -> int
+  requires 0 < port
+  ensures true
+  decreases 0
+=
+  return httpd_epoll_serve_i(port, root)
+
+def handle_conn_blocking(conn: var int, slot: var int, root: var ptr) raises Net, Alloc, IO -> int
+  requires conn >= 0
+  requires 0 <= slot
+  ensures true
+  decreases 0
+=
+  var cache_ok: int = httpd_cache_ready_i()
+  var done: int = 0
+  while done == 0:
+    var r: int = tcp_recv_slot(conn, slot, 16384)
+    if r == 0:
+      return 0
+    if r == -2:
+      return 0
+    if cache_ok == 1:
+      var drained: int = httpd_drain_slot_i(conn, slot)
+      if drained < 0:
+        return 0
+    if cache_ok == 0:
+      var draining: int = 1
+      while draining == 1:
+        var d: int = try_drain_slot(conn, root, slot)
+        if d < 0:
+          return 0
+        if d == 0:
+          draining = 0
+        if d > 0:
+          net_slot_consume(slot, d)
+  return 0
+
+def httpd_blocking_serve(port: var int, root: var ptr) raises Net, Alloc, IO -> int
+  requires 0 < port
+  ensures true
+  decreases 0
+=
+  httpd_prepare_root_i(root)
+  var listen_fd: int = tcp_listen(port)
+  var running: int = 1
+  while running == 1:
+    var conn: int = tcp_accept(listen_fd)
+    tcp_tune_client(conn)
+    var slot: int = httpd_slot_alloc(conn)
+    if slot >= 0:
+      handle_conn_blocking(conn, slot, root)
+      tcp_close(conn)
+      httpd_slot_free(slot)
+    if slot < 0:
+      tcp_close(conn)
+  return 0
+
+def httpd_serve_static_blocking(port: var int, root: var ptr) raises Net, Alloc, IO -> int
+  requires 0 < port
+  ensures true
+  decreases 0
+=
+  var epfd_probe: int = epoll_create1_i()
+  if epfd_probe >= 0:
+    net_close_fd(epfd_probe)
+    return httpd_epoll_serve_i(port, root)
+  return httpd_blocking_serve(port, root)
+
+def httpd_serve_port_root(port: var int, root: var ptr) raises Net, Alloc, IO -> int
+  requires 0 < port
+  ensures true
+  decreases 0
+=
+  return httpd_serve_static_blocking(port, root)
+
+def proxy_phase_send_req() -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  return 1
+
+def proxy_phase_send_body() -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  return 2
+
+def proxy_phase_relay() -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  return 3
+
+def proxy_body_cl() -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  return 1
+
+def proxy_parse_cached() -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  return 2
+
+def proxy_parse_resp_cl(hdr: var ptr, hdr_len: int) raises IO -> int
+  requires 0 <= hdr_len
+  ensures true
+  decreases hdr_len
+=
+  var i: int = 0
+  while i + 15 < hdr_len:
+    if net_byte_at_i(hdr, i) == 67:
+      if net_byte_at_i(hdr, i + 1) == 111:
+        if net_byte_at_i(hdr, i + 14) == 58:
+          var j: int = i + 15
+          while j < hdr_len:
+            if net_byte_at_i(hdr, j) == 32:
+              j = j + 1
+            if j < hdr_len:
+              if net_byte_at_i(hdr, j) >= 48:
+                if net_byte_at_i(hdr, j) <= 57:
+                  var cl: int = 0
+                  while j < hdr_len:
+                    if net_byte_at_i(hdr, j) >= 48:
+                      if net_byte_at_i(hdr, j) <= 57:
+                        cl = cl * 10 + (net_byte_at_i(hdr, j) - 48)
+                        j = j + 1
+                      if net_byte_at_i(hdr, j) < 48:
+                        return cl
+                      if net_byte_at_i(hdr, j) > 57:
+                        return cl
+                  return cl
+            j = j + 1
+    i = i + 1
+  return -1
+
+def proxy_li_finish_err(epfd: var int, slot: var int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  httpd_li_proxy_finish_err_i(epfd, slot)
+  return -1
+
+def proxy_li_pump_cl(epfd: var int, slot: var int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  var up: int = httpd_li_proxy_up_fd_i(slot)
+  var conn: int = httpd_slot_conn_i(slot)
+  var left: int = httpd_li_proxy_get_resp_body_left_i(slot)
+  var chunk: ptr = net_buf_alloc(8192)
+  while left > 0:
+    var max_sp: int = left
+    if max_sp > 8192:
+      max_sp = 8192
+    var sp: int = httpd_proxy_splice_cl_i(up, conn, max_sp)
+    if sp > 0:
+      left = left - sp
+      httpd_li_proxy_set_resp_body_left_i(slot, left)
+    if sp <= 0:
+      var r: int = tcp_recv_nb_i(up, chunk, 8192)
+      if r == -2:
+        net_buf_free(chunk)
+        return proxy_li_finish_err(epfd, slot)
+      if r == 0:
+        net_buf_free(chunk)
+        return proxy_li_finish_err(epfd, slot)
+      if r == -1:
+        net_buf_free(chunk)
+        return 0
+      var take: int = r
+      if take > left:
+        take = left
+      var fwd: int = httpd_li_proxy_forward_bytes_i(epfd, slot, chunk, take)
+      if fwd < 0:
+        net_buf_free(chunk)
+        return proxy_li_finish_err(epfd, slot)
+      left = left - take
+      httpd_li_proxy_set_resp_body_left_i(slot, left)
+  net_buf_free(chunk)
+  httpd_li_proxy_finish_ok_i(epfd, slot)
+  return 0
+
+def proxy_li_finish_resp_headers(epfd: var int, slot: var int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  var acc: ptr = httpd_li_proxy_resp_hdr_acc_i(slot)
+  var hlen: int = httpd_li_proxy_get_resp_hdr_len_i(slot)
+  var he_end: int = hdr_end_at(acc, 0, hlen)
+  if he_end < 0:
+    return proxy_li_finish_err(epfd, slot)
+  if proxy_parse_resp_cl(acc, he_end) < 0:
+    return proxy_li_finish_err(epfd, slot)
+  httpd_li_proxy_store_resp_cache_i(slot)
+  var hdr_bytes: int = httpd_li_proxy_cached_hdr_len_i()
+  if hdr_bytes <= 0:
+    return proxy_li_finish_err(epfd, slot)
+  if httpd_li_proxy_forward_bytes_i(epfd, slot, httpd_li_proxy_cached_hdr_ptr_i(), hdr_bytes) < 0:
+    return proxy_li_finish_err(epfd, slot)
+  httpd_li_proxy_set_resp_parsing_i(slot, 0)
+  httpd_li_proxy_set_resp_body_mode_i(slot, proxy_body_cl())
+  httpd_li_proxy_set_resp_body_left_i(slot, httpd_li_proxy_cached_cl_i())
+  var tail: int = hlen - hdr_bytes
+  if tail > 0:
+    var conn: int = httpd_slot_conn_i(slot)
+    if tcp_send_nb_i(conn, acc, hdr_bytes, tail) < 0:
+      return proxy_li_finish_err(epfd, slot)
+    var left0: int = httpd_li_proxy_get_resp_body_left_i(slot)
+    httpd_li_proxy_set_resp_body_left_i(slot, left0 - tail)
+  return proxy_li_pump_cl(epfd, slot)
+
+def proxy_li_feed_cached_hdr(epfd: var int, slot: var int, data: var ptr, n: var int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  requires n >= 0
+  ensures true
+  decreases n
+=
+  var need: int = httpd_li_proxy_cached_hdr_len_i()
+  var got: int = httpd_li_proxy_get_resp_hdr_len_i(slot)
+  if got >= need:
+    return proxy_li_finish_resp_headers(epfd, slot)
+  var room: int = need - got
+  var take: int = n
+  if take > room:
+    take = room
+  var extra: int = n - take
+  var appended: int = httpd_li_proxy_append_resp_hdr_i(slot, data, take)
+  if appended < 0:
+    return proxy_li_finish_err(epfd, slot)
+  if appended >= need:
+    var cached: ptr = httpd_li_proxy_cached_hdr_ptr_i()
+    var fwd: int = httpd_li_proxy_forward_bytes_i(epfd, slot, cached, need)
+    if fwd < 0:
+      return proxy_li_finish_err(epfd, slot)
+    httpd_li_proxy_set_resp_parsing_i(slot, 0)
+    httpd_li_proxy_set_resp_body_mode_i(slot, proxy_body_cl())
+    var cl: int = httpd_li_proxy_cached_cl_i()
+    httpd_li_proxy_set_resp_body_left_i(slot, cl - extra)
+    return proxy_li_pump_cl(epfd, slot)
+  return 0
+
+def proxy_li_enter_relay(epfd: var int, slot: var int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  httpd_li_proxy_set_phase_i(slot, proxy_phase_relay())
+  var cl_cached: int = httpd_li_proxy_cached_cl_i()
+  var hdr_cached: int = httpd_li_proxy_cached_hdr_len_i()
+  if cl_cached >= 0:
+    if hdr_cached > 0:
+      httpd_li_proxy_set_resp_parsing_i(slot, proxy_parse_cached())
+      httpd_li_proxy_set_resp_body_mode_i(slot, 0)
+      return 0
+  httpd_li_proxy_set_resp_parsing_i(slot, 1)
+  return 0
+
+def proxy_li_on_up_recv_cached(epfd: var int, slot: var int, chunk: var ptr) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  var rc: int = proxy_li_feed_cached_hdr(epfd, slot, chunk, httpd_li_scratch_get_i())
+  net_buf_free(chunk)
+  return rc
+
+def proxy_li_on_up_recv_parse(epfd: var int, slot: var int, chunk: var ptr) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  var appended: int = httpd_li_proxy_append_resp_hdr_i(slot, chunk, httpd_li_scratch_get_i())
+  net_buf_free(chunk)
+  if appended < 0:
+    return proxy_li_finish_err(epfd, slot)
+  return proxy_li_finish_resp_headers(epfd, slot)
+
+def proxy_li_on_up(epfd: var int, slot: var int, rev: int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  if net_epoll_hangup(rev) == 1:
+    return proxy_li_finish_err(epfd, slot)
+  var phase: int = httpd_li_proxy_phase_i(slot)
+  if phase == proxy_phase_send_req():
+    return proxy_li_pump_send(epfd, slot)
+  if phase == proxy_phase_send_body():
+    return proxy_li_pump_send(epfd, slot)
+  var parsing: int = httpd_li_proxy_get_resp_parsing_i(slot)
+  if parsing == 0:
+    if httpd_li_proxy_get_resp_body_mode_i(slot) == proxy_body_cl():
+      return proxy_li_pump_cl(epfd, slot)
+    return 0
+  var up: int = httpd_li_proxy_up_fd_i(slot)
+  var chunk: ptr = net_buf_alloc(8192)
+  var nr: int = tcp_recv_nb_i(up, chunk, 8192)
+  if nr == -2:
+    net_buf_free(chunk)
+    return proxy_li_finish_err(epfd, slot)
+  if nr == 0:
+    net_buf_free(chunk)
+    return proxy_li_finish_err(epfd, slot)
+  if nr == -1:
+    net_buf_free(chunk)
+    return 0
+  httpd_li_scratch_set_i(nr)
+  if parsing == proxy_parse_cached():
+    return proxy_li_on_up_recv_cached(epfd, slot, chunk)
+  return proxy_li_on_up_recv_parse(epfd, slot, chunk)
+
+def proxy_li_pump_send(epfd: var int, slot: var int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  var sent: int = httpd_li_proxy_send_request_i(epfd, slot)
+  if sent < 0:
+    return proxy_li_finish_err(epfd, slot)
+  if httpd_li_proxy_active_i(slot) == 0:
+    return -1
+  if sent == 1:
+    var er: int = proxy_li_enter_relay(epfd, slot)
+    if er < 0:
+      return er
+    return proxy_li_on_up(epfd, slot, 1)
+  return 0
+
+def proxy_li_on_client(epfd: var int, slot: var int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  var phase: int = httpd_li_proxy_phase_i(slot)
+  if phase == proxy_phase_send_body():
+    return proxy_li_pump_send(epfd, slot)
+  return 0
+
+def proxy_li_start(epfd: var int, slot: var int, hdr_end: int, keep: int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  var up: int = httpd_upstream_acquire_for_slot_i(slot)
+  if up < 0:
+    return -1
+  var he0: int = httpd_inject_traceparent_slot_i(slot, hdr_end)
+  var he: int = httpd_proxy_compact_req_hdr_i(slot, he0)
+  var ok: int = httpd_li_proxy_mark_active_i(epfd, slot, up, he, keep)
+  if ok < 0:
+    var reuse: int = 0
+    httpd_upstream_release_i(up, reuse)
+    return -1
+  var init: int = httpd_li_proxy_init_req_i(slot, he)
+  if init < 0:
+    return proxy_li_finish_err(epfd, slot)
+  return proxy_li_pump_send(epfd, slot)
+
+def proxy_accept_batch(epfd: var int, listen_fd: var int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  var accepted: int = 0
+  var again: int = 1
+  while again == 1:
+    var conn: int = tcp_accept_nb(listen_fd)
+    if conn < 0:
+      return accepted
+    net_set_nonblock(conn)
+    tcp_tune_client(conn)
+    var slot: int = httpd_slot_alloc(conn)
+    if slot < 0:
+      tcp_close(conn)
+      return accepted
+    if httpd_tls_enabled_i() == 1:
+      var tls_ok: int = httpd_tls_handshake_slot_i(slot, conn)
+      if tls_ok < 0:
+        tcp_close(conn)
+        httpd_slot_free(slot)
+        return accepted
+    if httpd_epoll_add_client_i(epfd, conn, slot) < 0:
+      tcp_close(conn)
+      httpd_slot_free(slot)
+      return accepted
+    proxy_handle_client_in(epfd, slot)
+    accepted = accepted + 1
+  return accepted
+
+def proxy_handle_client_in(epfd: var int, slot: var int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  requires 0 <= slot
+  ensures true
+  decreases 0
+=
+  if httpd_tls_slot_h2_i(slot) == 1:
+    var h2_rc: int = httpd_h2_serve_slot_i(epfd, slot)
+    if h2_rc < 0:
+      return -1
+    return 0
+  if httpd_li_proxy_active_i(slot) == 1:
+    return 0
+  var conn: int = httpd_slot_conn_i(slot)
+  if conn < 0:
+    return -1
+  var r: int = tcp_recv_slot(conn, slot, 16384)
+  if r == 0:
+    return -1
+  if r == -2:
+    return -1
+  if r == -1:
+    return 0
+  var filled: int = net_buf_len(slot)
+  if filled <= 0:
+    return 0
+  var buf: ptr = net_slot_buf_ptr(slot)
+  var hdr_end: int = hdr_end_at(buf, 0, filled)
+  if hdr_end < 0:
+    return 0
+  var keep: int = 1
+  if buf_has_connection_close(buf, hdr_end) == 1:
+    keep = 0
+  var drained: int = httpd_drain_slot_i(conn, slot)
+  if drained == -2:
+    return -1
+  if drained == -1:
+    return -1
+  if drained == 1:
+    return 0
+  var filled2: int = net_buf_len(slot)
+  if filled2 <= hdr_end:
+    if httpd_li_proxy_snap_ready_i() == 1:
+      var snap: int = httpd_li_proxy_try_snap_i(conn, slot, hdr_end, keep)
+      if snap == 1:
+        return 0
+      if snap < 0:
+        return -1
+  var st2: int = proxy_li_start(epfd, slot, hdr_end, keep)
+  if st2 < 0:
+    return -1
+  return 0
+
+def proxy_epoll_tag_is_up(tag_hi: int) -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  if tag_hi == -1073741824:
+    return 1
+  return 0
+
+def proxy_epoll_tag_is_client(tag_hi: int) -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  if tag_hi == -2147483648:
+    return 1
+  return 0
+
+def proxy_dispatch_hangup_loaded(epfd: var int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  if proxy_epoll_tag_is_up(net_events_loaded_hi_i()) == 1:
+    var slot_up: int = net_events_loaded_lo_i()
+    var up_fd: int = httpd_li_proxy_up_fd_i(slot_up)
+    httpd_epoll_unregister_fd_i(epfd, up_fd)
+    httpd_upstream_release_i(up_fd, 0)
+    return 0
+  if proxy_epoll_tag_is_client(net_events_loaded_hi_i()) == 1:
+    var slot_c: int = net_events_loaded_lo_i()
+    if httpd_li_proxy_active_i(slot_c) == 1:
+      var ec: int = epfd
+      httpd_li_proxy_finish_err_i(ec, slot_c)
+      return 0
+    var conn_h: int = httpd_slot_conn_i(slot_c)
+    epoll_ctl_del_i(epfd, conn_h)
+    tcp_close(conn_h)
+    httpd_slot_free(slot_c)
+  return 0
+
+def proxy_dispatch_up_loaded(epfd: var int, slot_u: int, rev: int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  var eu1: int = epfd
+  var su1: int = slot_u
+  var ru1: int = rev
+  httpd_li_proxy_up_epoll_i(eu1, su1, ru1)
+  var su2: int = slot_u
+  if httpd_li_proxy_active_i(su2) == 0:
+    var eu2: int = epfd
+    var su3: int = slot_u
+    httpd_li_proxy_finish_drain_i(eu2, su3)
+  return 0
+
+def proxy_dispatch_client_loaded(epfd: var int, slot_c: int, rev: int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  ensures true
+  decreases 0
+=
+  if httpd_li_proxy_active_i(slot_c) == 1:
+    var ec1: int = epfd
+    var sc1: int = slot_c
+    var rc1: int = rev
+    httpd_li_proxy_client_epoll_i(ec1, sc1, rc1)
+    var sc2: int = slot_c
+    if httpd_li_proxy_active_i(sc2) == 0:
+      var ec2: int = epfd
+      var sc3: int = slot_c
+      httpd_li_proxy_finish_drain_i(ec2, sc3)
+    return 0
+  if net_epoll_readable(rev) == 1:
+    var rc2: int = proxy_handle_client_in(epfd, slot_c)
+    if rc2 < 0:
+      var conn2: int = httpd_slot_conn_i(slot_c)
+      epoll_ctl_del_i(epfd, conn2)
+      tcp_close(conn2)
+      httpd_slot_free(slot_c)
+  return 0
+
+def proxy_dispatch_one(epfd: var int, listen_fd: var int, events: var ptr, idx: int) raises Net, Alloc, IO -> int
+  requires epfd >= 0
+  requires idx >= 0
+  ensures true
+  decreases 0
+=
+  net_events_tagged_load_i(events, idx)
+  if net_events_loaded_lo_i() == listen_fd:
+    proxy_accept_batch(epfd, listen_fd)
+    return 0
+  if net_epoll_hangup(net_events_loaded_revents_i()) == 1:
+    return proxy_dispatch_hangup_loaded(epfd)
+  if proxy_epoll_tag_is_up(net_events_loaded_hi_i()) == 1:
+    return proxy_dispatch_up_loaded(epfd, net_events_loaded_lo_i(), net_events_loaded_revents_i())
+  if proxy_epoll_tag_is_client(net_events_loaded_hi_i()) == 1:
+    return proxy_dispatch_client_loaded(epfd, net_events_loaded_lo_i(), net_events_loaded_revents_i())
+  return 0
+
+def httpd_upstream_proxy_epoll_loop(port: var int, root: var ptr) raises Net, Alloc, IO -> int
+  requires 0 < port
+  ensures true
+  decreases 0
+=
+  if httpd_proxy_configured_i() != 1:
+    if httpd_tls_enabled_i() != 1:
+      return 1
+  if httpd_proxy_configured_i() == 1:
+    httpd_set_li_proxy_mode_i(1)
+  httpd_prepare_root_i(root)
+  var epfd: int = epoll_create1_i()
+  if epfd < 0:
+    return 1
+  httpd_set_epfd_i(epfd)
+  var listen_fd: int = tcp_listen(port)
+  if listen_fd < 0:
+    return 1
+  net_set_nonblock(listen_fd)
+  if epoll_ctl_add_listen_i(epfd, listen_fd) < 0:
+    return 1
+  var evbuf: ptr = net_buf_alloc(768)
+  var running: int = 1
+  while running == 1:
+    httpd_tick_active_health_probes_i()
+    httpd_tick_sse_stream_idle_i(epfd)
+    var wait_ms: int = httpd_sse_idle_epoll_timeout_ms_i()
+    var n: int = epoll_wait_tagged_timeout_ms_i(epfd, evbuf, 256, wait_ms)
+    if n <= 0:
+      running = 1
+    if n > 0:
+      var i: int = 0
+      while i < n:
+        proxy_dispatch_one(epfd, listen_fd, evbuf, i)
+        i = i + 1
+      var spin: int = 1
+      while spin == 1:
+        var n2: int = epoll_wait_tagged_spin_i(epfd, evbuf, 256)
+        if n2 <= 0:
+          spin = 0
+        if n2 > 0:
+          var j: int = 0
+          while j < n2:
+            proxy_dispatch_one(epfd, listen_fd, evbuf, j)
+            j = j + 1
+  net_buf_free(evbuf)
+  return 0
+
+def nginx_proxy_epoll_serve(port: var int, root: var ptr, backend_port: var int) raises Net, Alloc, IO -> int
+  requires 0 < port
+  requires 0 < backend_port
+  ensures true
+  decreases 0
+=
+  var all_paths: int = 1
+  var ok: int = httpd_set_proxy_upstream_port_i(backend_port, all_paths)
+  if ok < 0:
+    return 1
+  return httpd_upstream_proxy_epoll_loop(port, root)
+
+def httpd_serve_port_root_proxy(port: var int, root: var ptr, backend_port: var int) raises Net, Alloc, IO -> int
+  requires 0 < port
+  requires 0 < backend_port
+  ensures true
+  decreases 0
+=
+  if httpd_env_li_proxy_loop_i() == 1:
+    return nginx_proxy_epoll_serve(port, root, backend_port)
+  return httpd_epoll_serve_proxy_i(port, root, backend_port)
+
+def path_ends_with_conf(path: var ptr) raises IO -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  var n: int = bytes_len_i(path)
+  if n < 5:
+    return 0
+  if net_byte_at_i(path, n - 5) != 46:
+    return 0
+  if net_byte_at_i(path, n - 4) != 99:
+    return 0
+  if net_byte_at_i(path, n - 3) != 111:
+    return 0
+  if net_byte_at_i(path, n - 2) != 110:
+    return 0
+  if net_byte_at_i(path, n - 1) != 102:
+    return 0
+  return 1
+
+def httpd_begin_worker_pool() raises Net, Alloc, IO -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  var n: int = httpd_fork_workers_i()
+  if n < 1:
+    return 1
+  return 0
+
+def httpd_run_from_runtime_config(path: var ptr) raises Net, Alloc, IO -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  var ok: int = httpd_load_runtime_config_i(path)
+  if ok < 0:
+    return 1
+  var p: int = httpd_config_listen_port_i()
+  var r: ptr = httpd_config_doc_root_i()
+  if p <= 0:
+    return 1
+  if httpd_begin_worker_pool() != 0:
+    return 1
+  if httpd_tls_enabled_i() == 1:
+    return httpd_upstream_proxy_epoll_loop(p, r)
+  if httpd_proxy_configured_i() == 1:
+    return httpd_upstream_proxy_epoll_loop(p, r)
+  return httpd_serve_port_root(p, r)
+
+def httpd_run_from_argv() raises Net, Alloc, IO -> int
+  requires true
+  ensures true
+  decreases 0
+=
+  if li_rt_argc() == 2:
+    var cfg: ptr = li_rt_argv_i(1)
+    if path_ends_with_conf(cfg) == 1:
+      return httpd_run_from_runtime_config(cfg)
+  if li_rt_argc() < 3:
+    return 1
+  var port_arg: ptr = li_rt_argv_i(1)
+  var p: int = httpd_parse_port_i(port_arg)
+  var r: ptr = li_rt_argv_i(2)
+  if httpd_begin_worker_pool() != 0:
+    return 1
+  if li_rt_argc() >= 4:
+    var backend_arg: ptr = li_rt_argv_i(3)
+    var all_paths: int = 1
+    var csv_ok: int = httpd_set_upstream_ports_csv_i(backend_arg, all_paths)
+    if csv_ok > 0:
+      if li_rt_argc() >= 5:
+        var mode_arg: ptr = li_rt_argv_i(4)
+        var lcm: int = httpd_lb_mode_from_arg_i(mode_arg)
+        httpd_set_lb_mode_i(lcm)
+      return httpd_upstream_proxy_epoll_loop(p, r)
+    var bp: int = httpd_parse_port_i(backend_arg)
+    return httpd_serve_port_root_proxy(p, r, bp)
+  return httpd_serve_port_root(p, r)
+
+# M1 composable surface (no second `main` — use packages/li-net-httpd/src/main.li for CLI).
+extern proc li_rt_httpd_serve_once(port: int) -> int
+  requires 1024 <= port
+  requires port <= 65535
+  ensures true
 
 def httpd_tag() -> int
   requires true
-  ensures result == 0
+  ensures result == 1
   decreases 0
 =
-  return 0
+  return 1
 
-def httpd_serve(config: HttpdConfig) -> int
-  requires true
-  ensures result == 0
+def httpd_serve_once(port: int) raises Net, Alloc, IO -> int
+  requires 1024 <= port
+  requires port <= 65535
+  ensures true
   decreases 0
 =
-  return 0
-
-def httpd_stop(handle_id: int) -> int
-  requires handle_id == 0
-  ensures result == 0
-  decreases 0
-=
-  return 0
-
-def httpd_ready(handle_id: int) -> bool
-  requires handle_id == 0
-  ensures result == true
-  decreases 0
-=
-  return true
+  return li_rt_httpd_serve_once(port)

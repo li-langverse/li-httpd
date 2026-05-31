@@ -1,0 +1,28 @@
+# M1.5 leak_censor live proxy — upstream secret scrub on egress (test-m15-leak-censor-runtime.sh).
+[server]
+listen = "127.0.0.1:18160"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 200
+rate_limit_burst = 400
+
+[leak_censor]
+enabled = true
+on_detect = "redact"
+
+[leak_censor.json]
+deny_paths = ["$.api_key"]
+include_generated = false
+
+[leak_censor.patterns]
+allow = ["openai_sk", "jwt_bearer", "pem_private"]
+
+[upstreams.api]
+peers = ["http://127.0.0.1:18161"]
+
+[routes]
+"GET /health" = "static:healthcheck"
+"POST /v1/*" = "proxy:api"

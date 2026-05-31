@@ -1,0 +1,16 @@
+# m1-upstream-keepalive — proxy pool reuses connections; stale fds reconnect (test-upstream-keepalive.sh)
+[server]
+listen = "127.0.0.1:18120"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 1000
+rate_limit_burst = 2000
+
+[upstreams.api]
+peers = ["http://127.0.0.1:18121"]
+
+[routes]
+"GET /*" = "proxy:api"
