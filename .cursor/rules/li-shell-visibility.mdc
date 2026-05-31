@@ -1,0 +1,49 @@
+---
+description: Shell commands must show live output and real exit codes (build/test/CI)
+alwaysApply: true
+---
+
+# Shell visibility (Li compile & test)
+
+Li work runs **long builds and test suites** often. Agents must not hide whether a process finished or what failed.
+
+## Required
+
+- Run **build / CI / test commands in the foreground** so tool output streams back in the chat.
+- After each meaningful step, report **`echo "step exit=$?"`** on its own line (same shell, immediately after the command).
+- Prefer **one phase per Shell invocation** (e.g. `build.sh`, then `run_httpd_config.sh`, then `run_all.sh`) instead of one opaque mega-script.
+- Use the Shell tool **`block_until_ms`** long enough for compile/test to finish (minutes for full `ci.sh` / `run_all.sh`).
+
+## Forbidden
+
+| Pattern | Why |
+|---------|-----|
+| `cmd > /tmp/foo.log 2>&1` then `grep`/`tail` the log | Hides live output; easy to miss failure |
+| `cmd 2>&1 \| tail -20` (or `head`) as the only check | Truncates errors; pipeline exit may be `tail`'s |
+| `cmd \| tee log` when the agent only reads `log` later | Same as redirect if stdout isn't in the tool result |
+| Background `cmd &` for compile/test unless the user asked | No clear completion signal |
+| `echo exit=$?` after a **pipeline** without `set -o pipefail` | Often prints `0` from `tail`/`tee`, not `cmd` |
+
+## Allowed
+
+- Short filters on **already-finished** output the user asked to summarize (not as the only way to run CI).
+- `set -o pipefail` when a pipeline is truly needed; then report the failing command's status.
+- `tee` only if **full stdout/stderr still appear** in the Shell tool result (user can see progress).
+
+## Examples
+
+```bash
+# BAD — outcome hidden
+./scripts/local-ci.sh > /tmp/ci.log 2>&1
+grep FAIL /tmp/ci.log | tail -20
+echo "exit=$?"
+
+# GOOD — visible + explicit
+./scripts/build.sh
+echo "build exit=$?"
+
+./li-tests/run_all.sh
+echo "run_all exit=$?"
+```
+
+Do not substitute log scraping for running the command where the agent and user can see it complete.

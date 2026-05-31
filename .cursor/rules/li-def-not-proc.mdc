@@ -1,0 +1,29 @@
+---
+description: Li ecosystem code and docs use def, never proc, for user-visible functions
+alwaysApply: true
+---
+
+# Li definitions: `def`, not `proc`
+
+## Rule
+
+Across Li repos, agents must write and describe Li functions with **`def`**.
+
+```nim
+def step_world(dt: float) -> int
+  requires dt > 0.0
+  ensures result == 0
+  decreases 0
+=
+  return 0
+```
+
+## Forbidden
+
+- New Li examples, docs, tests, release notes, telemetry names, or APIs that introduce the word **`proc`** for functions.
+- New compatibility shims or aliases that teach `proc` as acceptable syntax.
+- Source-level vendor GPU strings such as `@gpu(vendor="cuda")`; backend selection belongs to `lig` config/runtime gates.
+
+## Legacy boundary
+
+Existing compiler internals may still contain historical names while being migrated. Do not add more. If an emergency compiler/runtime FFI edit cannot avoid the legacy token, stop and document why in the PR.

@@ -1,0 +1,20 @@
+---
+description: Li ecosystem implementation defaults to Li source compiled to machine code
+alwaysApply: true
+---
+
+# Li-first implementation, no helper-code drift
+
+Li code should be written in Li and compiled to machine code. Agents must not create sidecar helper implementations in Python, JavaScript, C, C++, Rust, Go, or shell when the behavior belongs in a Li package.
+
+## Allowed narrow boundaries
+
+- `compiler/**` and `runtime/**` while the language is still bootstrapping.
+- `.cursor/hooks/**` and `scripts/**` for repo automation, guards, CI, and release tooling.
+- Vendor/runtime kernel boundaries under `lig` only when they are tracked by PH-HW, security, and benchmark gates.
+
+## Required behavior
+
+- Prefer a `.li` API, contracts, and `li-tests` row for product behavior.
+- Treat CUDA/HIP/Metal/Vulkan/wgpu as backend/runtime or benchmark targets, not as user-authored source strings.
+- Add non-Li helper code only with a release-note scope fence explaining why Li cannot own that slice yet.

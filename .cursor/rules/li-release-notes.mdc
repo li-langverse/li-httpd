@@ -1,0 +1,38 @@
+---
+description: Mandatory agent-oriented release notes on every merge-worthy PR — specific, scoped, continuation block
+alwaysApply: true
+---
+
+# Release notes (mandatory)
+
+Agents **must** write release notes agents can continue from — not vague changelog fluff.
+
+**Policy:** `../roadmap/docs/ecosystem/release-notes.md`  
+**Template:** `../roadmap/docs/release-notes/TEMPLATE.md`  
+**Skill:** `write-li-release-notes`
+
+## Before opening a PR
+
+1. Update **`CHANGELOG.md`** under `## [Unreleased]` (Keep a Changelog).
+2. Add **`docs/release-notes/YYYY-MM-DD-<slug>.md`** using the template (all sections; **Agent continuation** required).
+3. PR description: paste **Summary**, **Agent continuation**, **Breaking** (if any).
+
+## Required content (every note)
+
+| Section | Purpose |
+|---------|---------|
+| **Summary** | One precise sentence |
+| **Agent continuation** | Numbered: read → run → next → blocked |
+| **Changed** | Paths, commands, PH-/REQ-/T- ids, evidence |
+| **Not changed** | Scope fence — what this PR does **not** touch |
+| **Breaking / Security / Performance / Downstream** | `N/A` with reason or concrete rows |
+
+## Forbidden phrasing
+
+- “Misc fixes”, “improved stability”, “refactored code”, “updated docs” without paths
+- Claims without test/bench/CVE evidence
+- Omitting **Not changed** on cross-cutting work
+
+## Releases
+
+On tag `v*`: GitHub Release body = same text as the dated `docs/release-notes/` file for that tag.

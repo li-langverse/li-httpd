@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      { "command": ".cursor/hooks/session-context.sh" }
+    ],
+    "beforeShellExecution": [
+      { "command": ".cursor/hooks/guard-destructive-git.sh" },
+      { "command": ".cursor/hooks/guard-secrets.sh" },
+      { "command": ".cursor/hooks/guard-direct-push.sh" },
+      { "command": ".cursor/hooks/guard-pr-merge.sh" },
+      { "command": ".cursor/hooks/guard-li-surface.sh" }
+    ],
+    "afterFileEdit": [
+      { "command": ".cursor/hooks/guard-li-surface.sh" },
+      {
+        "command": ".cursor/hooks/remind-governance-docs.sh",
+        "matcher": "docs/**"
+      },
+      {
+        "command": ".cursor/hooks/remind-governance-docs.sh",
+        "matcher": "proposals/**"
+      }
+    ],
+    "stop": [
+      { "command": ".cursor/hooks/remind-release-notes.sh" }
+    ]
+  }
+}
