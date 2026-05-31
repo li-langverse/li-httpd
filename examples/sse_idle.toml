@@ -1,0 +1,21 @@
+# M1.5 SSE idle — stream_idle_timeout cancels stalled upstream (test-m15-sse-runtime.sh)
+[server]
+listen = "127.0.0.1:18140"
+document_root = "./public"
+workers = 1
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 64
+rate_limit_burst = 64
+stream_idle_timeout = "2s"
+stream_max_duration = "60s"
+concurrent_streams = 8
+
+[upstreams.llm]
+peers = ["http://127.0.0.1:18141"]
+
+[routes]
+"GET /health" = "static:healthcheck"
+"POST /v1/chat/completions require=traceparent" = "proxy:llm"

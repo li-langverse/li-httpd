@@ -1,9 +1,8 @@
-
 import net.httpd
 
-def main() -> int
+def main() raises Net, Alloc, IO -> int
   requires true
   ensures result == 0
   decreases 0
 =
-  return httpd_tag()
+  return httpd_run_from_argv()

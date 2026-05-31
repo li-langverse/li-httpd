@@ -1,0 +1,17 @@
+# M3 optional — token-budget ingress cap on live li-httpd (no L4 relay)
+[server]
+listen = "127.0.0.1:39221"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+
+[limits.token_budget]
+enabled = true
+header = "x-token-budget"
+max_per_request = 5000
+reject_over_cap = true
+
+[routes]
+"GET /health" = "static:healthcheck"
