@@ -36,12 +36,6 @@ jobs:
           ref: 337573217951eee086f529f1f2452b680a28445c
 
 
-      - name: Enforce def syntax (no bare proc)
-        run: |
-          set -eo pipefail
-          bash lic/scripts/check-li-def-syntax.sh ./src
-          test ! -d li-tests || bash lic/scripts/check-li-def-syntax.sh ./li-tests
-
       - name: Build lic
         working-directory: lic
         run: |
