@@ -41,6 +41,7 @@ jobs:
 
       - name: lic build (li-net-httpd @ pin)
         working-directory: lic
+        shell: bash
         env:
           LIC: ${{ github.workspace }}/lic/build/compiler/lic/lic
           LI_REPO_ROOT: ${{ github.workspace }}/lic
