@@ -32,10 +32,11 @@ jobs:
       - name: Read lic toolchain pin
         id: pin
         run: |
-          set -euo pipefail
+          set -eo pipefail
           COMMIT=$(grep '^lic_commit' li-toolchain.toml | cut -d'"' -f2)
           test -n "$COMMIT"
-          echo "lic_commit=$COMMIT" >> "$GITHUB_OUTPUT"
+          OUTPUT_FILE="${GITHUB_OUTPUT:-/github/output}"
+          echo "lic_commit=$COMMIT" >> "$OUTPUT_FILE"
 
       - uses: actions/checkout@v4
         with:
