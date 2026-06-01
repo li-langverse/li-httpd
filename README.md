@@ -1,51 +1,33 @@
 # li-httpd
 
-Proved AI/agent HTTP gateway (Phase H). **M1 not implemented** — blocked on full **2e–2f** Lean gate; see [httpd plan](../../docs/superpowers/plans/2026-05-16-li-httpd-plan.md) and [httpd prerequisites](../../docs/ecosystem/httpd-prerequisites.md).
-
-**Composable by default:** `import net.httpd` from any program; lifecycle lives in `src/lib.li`. `src/main.li` is a thin demo only. See [composable-by-default](../../docs/ecosystem/composable-by-default.md).
-
-Path deps: `li-net`, `li-bytes` (planned), workspace in `lic` `packages/li.toml`.
-
-## Composable API (aspirational — stubs today)
-
-```li
-import net.httpd
-
-def main() -> int
-  requires true
-  ensures result == 0
-  decreases 0
-=
-  var cfg: HttpdConfig
-  cfg.port = 8080
-  var h: int = httpd_serve(cfg)
-  if not httpd_ready(h):
-    return 1
-  httpd_stop(h)
-  return 0
-```
-
-Other packages embed the same calls in their own `def main` — no copy-paste of server loop.
+Li-native HTTP/HTTPS server (epoll, TLS terminate, reverse proxy). **Official repo** — package source is developed in [lic](https://github.com/li-langverse/lic) (`packages/li-net-httpd`) and synced here.
 
 ## Build
 
+Requires a sibling **lic** checkout (compiler + C runtime). Pinned in `li-toolchain.toml` (currently `33757321`).
+
 ```bash
-lic build src/lib.li -o /dev/null
-lic build src/main.li -o li-httpd-demo   # optional thin demo
+export LIC_ROOT=../lic-pure-https   # or ../lic on main
+./scripts/build-li-httpd.sh
+./build/li-httpd path/to/runtime.conf
 ```
 
-From the monorepo root, ensure `lic` is built: `./scripts/build.sh`.
+Env: `LI_HTTPD_TLS_LEGACY_OPENSSL=1`, `LI_HTTPD_WORKERS=0`, `LI_HTTPD_M2_HTTP2=0` for tier5 parity.
 
-## Traceability
+## Config
 
-| ID | Link |
-|----|------|
-| Package | `PKG-li-httpd` |
-| Org repo | https://github.com/li-langverse/li-httpd |
-| Governance | [Ecosystem governance](https://li-langverse.github.io/li-language/ecosystem/governance/) |
+TOML → runtime conf via lic's `scripts/flatten-httpd-config.py`, or hand-write `listen_port`, `listen_port_http` (dual HTTP+HTTPS), `tls_enabled=1`, etc.
 
-See `PUBLISH.md` and `docs/traceability.md`.
+Examples in `examples/`. See `docs/proxy-nginx-li-migration.md`.
 
-## License
+## Import
 
-Apache-2.0 OR MIT
+```li
+import net.httpd
+```
+
+Composable API in `src/lib.li`; `src/main.li` is the CLI entry.
+
+## CI
+
+Checks out pinned **lic** and runs `lic check` / smoke build (see `.github/workflows/ci.yml`).

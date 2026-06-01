@@ -1,5 +1,6 @@
 import net
 import std.runtime.seam
+import tls
 
 def hdr_end_at(buf: var ptr, start: var int, limit: var int) raises IO -> int
   requires 0 <= start
@@ -722,7 +723,7 @@ def proxy_li_start(epfd: var int, slot: var int, hdr_end: int, keep: int) raises
     return proxy_li_finish_err(epfd, slot)
   return proxy_li_pump_send(epfd, slot)
 
-def proxy_accept_batch(epfd: var int, listen_fd: var int) raises Net, Alloc, IO -> int
+def proxy_accept_batch(epfd: var int, listen_fd: var int, use_tls: var int) raises Net, Alloc, IO -> int
   requires epfd >= 0
   ensures true
   decreases 0
@@ -739,17 +740,34 @@ def proxy_accept_batch(epfd: var int, listen_fd: var int) raises Net, Alloc, IO 
     if slot < 0:
       tcp_close(conn)
       return accepted
-    if httpd_tls_enabled_i() == 1:
-      var tls_ok: int = httpd_tls_handshake_slot_i(slot, conn)
+    var tls_hs_done: int = 1
+    if use_tls == 1 and httpd_tls_enabled_i() == 1:
+      var tls_ok: int = 0
+      if httpd_pure_li_tls_i() == 1:
+        tls_ok = tls_server_attach(slot, conn)
+        if tls_ok < 0:
+          tls_hs_done = 0
+      if httpd_pure_li_tls_i() != 1:
+        tls_ok = httpd_tls_handshake_begin_i(slot, conn)
+        if tls_ok < 0:
+          tls_hs_done = 0
+        if tls_ok == 1:
+          var spin: int = httpd_tls_handshake_spin_i(slot, conn, 512)
+          if spin == 0:
+            tls_ok = 0
+            tls_hs_done = 1
+          if spin < 0:
+            tls_ok = -1
       if tls_ok < 0:
         tcp_close(conn)
         httpd_slot_free(slot)
         return accepted
-    if httpd_epoll_add_client_i(epfd, conn, slot) < 0:
+    if httpd_epoll_add_client_tls_i(epfd, conn, slot) < 0:
       tcp_close(conn)
       httpd_slot_free(slot)
       return accepted
-    proxy_handle_client_in(epfd, slot)
+    if tls_hs_done == 1:
+      proxy_handle_client_in(epfd, slot)
     accepted = accepted + 1
   return accepted
 
@@ -759,7 +777,26 @@ def proxy_handle_client_in(epfd: var int, slot: var int) raises Net, Alloc, IO -
   ensures true
   decreases 0
 =
-  if httpd_tls_slot_h2_i(slot) == 1:
+  if httpd_tls_enabled_i() == 1:
+    if httpd_pure_li_tls_i() != 1:
+      if httpd_tls_handshake_pending_i(slot) == 1:
+        var hs: int = httpd_tls_handshake_continue_i(slot)
+        if hs == 1:
+          return 0
+        if hs < 0:
+          return -1
+  if httpd_pure_li_tls_i() == 1:
+    if tls_server_slot_active(slot) == 1:
+      var poll_st: int = tls_server_poll(slot)
+      if poll_st < 0:
+        return -1
+      if poll_st == 1:
+        var nr: int = tls_server_read_app(slot, 16384)
+        if nr < 0:
+          return -1
+        if nr == 0:
+          return 0
+  if httpd_tls_slot_h2_i(slot) == 1 or (httpd_pure_li_tls_i() == 1 and tls_server_alpn(slot) == 1):
     var h2_rc: int = httpd_h2_serve_slot_i(epfd, slot)
     if h2_rc < 0:
       return -1
@@ -879,6 +916,16 @@ def proxy_dispatch_client_loaded(epfd: var int, slot_c: int, rev: int) raises Ne
       var sc3: int = slot_c
       httpd_li_proxy_finish_drain_i(ec2, sc3)
     return 0
+  if httpd_tls_handshake_pending_i(slot_c) == 1:
+    var hs2: int = httpd_tls_handshake_continue_i(slot_c)
+    if hs2 == 1:
+      return 0
+    if hs2 < 0:
+      var conn_hs: int = httpd_slot_conn_i(slot_c)
+      epoll_ctl_del_i(epfd, conn_hs)
+      tcp_close(conn_hs)
+      httpd_slot_free(slot_c)
+      return 0
   if net_epoll_readable(rev) == 1:
     var rc2: int = proxy_handle_client_in(epfd, slot_c)
     if rc2 < 0:
@@ -888,15 +935,19 @@ def proxy_dispatch_client_loaded(epfd: var int, slot_c: int, rev: int) raises Ne
       httpd_slot_free(slot_c)
   return 0
 
-def proxy_dispatch_one(epfd: var int, listen_fd: var int, events: var ptr, idx: int) raises Net, Alloc, IO -> int
+def proxy_dispatch_one(epfd: var int, listen_tls: var int, listen_http: var int, events: var ptr, idx: int) raises Net, Alloc, IO -> int
   requires epfd >= 0
   requires idx >= 0
   ensures true
   decreases 0
 =
   net_events_tagged_load_i(events, idx)
-  if net_events_loaded_lo_i() == listen_fd:
-    proxy_accept_batch(epfd, listen_fd)
+  var lo: int = net_events_loaded_lo_i()
+  if lo == listen_tls:
+    proxy_accept_batch(epfd, listen_tls, 1)
+    return 0
+  if listen_http >= 0 and lo == listen_http:
+    proxy_accept_batch(epfd, listen_http, 0)
     return 0
   if net_epoll_hangup(net_events_loaded_revents_i()) == 1:
     return proxy_dispatch_hangup_loaded(epfd)
@@ -921,12 +972,22 @@ def httpd_upstream_proxy_epoll_loop(port: var int, root: var ptr) raises Net, Al
   if epfd < 0:
     return 1
   httpd_set_epfd_i(epfd)
-  var listen_fd: int = tcp_listen(port)
-  if listen_fd < 0:
+  var listen_tls: int = tcp_listen(port)
+  if listen_tls < 0:
     return 1
-  net_set_nonblock(listen_fd)
-  if epoll_ctl_add_listen_i(epfd, listen_fd) < 0:
+  net_set_nonblock(listen_tls)
+  if epoll_ctl_add_listen_i(epfd, listen_tls) < 0:
     return 1
+  var listen_http: int = -1
+  var http_port: int = httpd_config_listen_port_http_i()
+  if httpd_tls_enabled_i() == 1 and http_port > 0 and http_port != port:
+    var lh: int = tcp_listen(http_port)
+    if lh < 0:
+      return 1
+    listen_http = lh
+    net_set_nonblock(lh)
+    if epoll_ctl_add_listen_i(epfd, lh) < 0:
+      return 1
   var evbuf: ptr = net_buf_alloc(768)
   var running: int = 1
   while running == 1:
@@ -939,7 +1000,7 @@ def httpd_upstream_proxy_epoll_loop(port: var int, root: var ptr) raises Net, Al
     if n > 0:
       var i: int = 0
       while i < n:
-        proxy_dispatch_one(epfd, listen_fd, evbuf, i)
+        proxy_dispatch_one(epfd, listen_tls, listen_http, evbuf, i)
         i = i + 1
       var spin: int = 1
       while spin == 1:
@@ -949,7 +1010,7 @@ def httpd_upstream_proxy_epoll_loop(port: var int, root: var ptr) raises Net, Al
         if n2 > 0:
           var j: int = 0
           while j < n2:
-            proxy_dispatch_one(epfd, listen_fd, evbuf, j)
+            proxy_dispatch_one(epfd, listen_tls, listen_http, evbuf, j)
             j = j + 1
   net_buf_free(evbuf)
   return 0
