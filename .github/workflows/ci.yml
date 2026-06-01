@@ -29,24 +29,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Read lic toolchain pin
-        id: pin
+      - name: Checkout lic at li-toolchain pin
         run: |
           set -eo pipefail
           COMMIT=$(grep '^lic_commit' li-toolchain.toml | cut -d'"' -f2)
           test -n "$COMMIT"
-          OUTPUT_FILE="${GITHUB_OUTPUT:-/github/output}"
-          echo "lic_commit=$COMMIT" >> "$OUTPUT_FILE"
-
-      - uses: actions/checkout@v4
-        with:
-          repository: li-langverse/lic
-          path: lic
-          ref: ${{ steps.pin.outputs.lic_commit }}
+          git clone --depth 1 https://github.com/li-langverse/lic.git lic
+          git -C lic fetch --depth 1 origin "$COMMIT"
+          git -C lic checkout "$COMMIT"
 
       - name: Enforce def syntax (no bare proc)
         run: |
-          set -euo pipefail
+          set -eo pipefail
           chmod +x lic/scripts/check-li-def-syntax.sh
           lic/scripts/check-li-def-syntax.sh src
           if [[ -d li-tests ]]; then
