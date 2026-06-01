@@ -1,33 +1,29 @@
 # li-httpd
 
-Li-native HTTP/HTTPS server (epoll, TLS terminate, reverse proxy). **Official repo** — package source is developed in [lic](https://github.com/li-langverse/lic) (`packages/li-net-httpd`) and synced here.
+Li-native HTTP/HTTPS server — epoll, TLS, reverse proxy, dual HTTP+HTTPS listeners.
+
+**Develop here.** [lic](https://github.com/li-langverse/lic) is the **compiler only** (`li-toolchain.toml`). No httpd/net/TLS features in lic or C under `lic/runtime/`.
 
 ## Build
 
-Requires a sibling **lic** checkout (compiler + C runtime). Pinned in `li-toolchain.toml` (currently `33757321`).
-
 ```bash
-export LIC_ROOT=../lic-pure-https   # or ../lic on main
+export LIC_ROOT=../lic
 ./scripts/build-li-httpd.sh
 ./build/li-httpd path/to/runtime.conf
 ```
 
-Env: `LI_HTTPD_TLS_LEGACY_OPENSSL=1`, `LI_HTTPD_WORKERS=0`, `LI_HTTPD_M2_HTTP2=0` for tier5 parity.
-
 ## Config
 
-TOML → runtime conf via lic's `scripts/flatten-httpd-config.py`, or hand-write `listen_port`, `listen_port_http` (dual HTTP+HTTPS), `tls_enabled=1`, etc.
+```toml
+[server]
+listen = "127.0.0.1:8443"
+listen_http = "127.0.0.1:8080"
+```
 
-Examples in `examples/`. See `docs/proxy-nginx-li-migration.md`.
+See `docs/architecture.md`, `AGENTS.md`, `examples/`.
 
 ## Import
 
 ```li
 import net.httpd
 ```
-
-Composable API in `src/lib.li`; `src/main.li` is the CLI entry.
-
-## CI
-
-Checks out pinned **lic** and runs `lic check` / smoke build (see `.github/workflows/ci.yml`).
