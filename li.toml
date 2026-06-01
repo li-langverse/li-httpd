@@ -1,5 +1,5 @@
 [package]
-name = "li-net-httpd"
+name = "li-httpd"
 version = "0.1.0"
 edition = "2026"
 license = "Apache-2.0 OR MIT"
@@ -15,7 +15,7 @@ github_repo = "li-httpd"
 import_name = "net.httpd"
 min_lic = "0.1.0"
 maintainer = "li-langverse"
-pkg_id = "PKG-li-net-httpd"
+pkg_id = "PKG-li-httpd"
 
 [package.repository]
 url = "https://github.com/li-langverse/li-httpd"

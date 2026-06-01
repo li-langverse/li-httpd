@@ -1,5 +1,5 @@
-# Pin lic / lit for reproducible CI (synced from lic @ dda00bad).
+# Pin lic for reproducible CI (synced from lic @ 33757321).
 [toolchain]
 lic_version = "0.1.0"
-lic_commit = "dda00bad71cf182513b28e7aeb74cff28bccc11d"
+lic_commit = "337573217951eee086f529f1f2452b680a28445c"
 lit_version = "0.1.0"
