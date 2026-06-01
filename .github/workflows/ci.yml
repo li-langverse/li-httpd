@@ -39,9 +39,8 @@ jobs:
       - name: Enforce def syntax (no bare proc)
         run: |
           set -eo pipefail
-          test -x lic/scripts/check-li-def-syntax.sh
-          lic/scripts/check-li-def-syntax.sh ./src
-          test ! -d li-tests || lic/scripts/check-li-def-syntax.sh ./li-tests
+          bash lic/scripts/check-li-def-syntax.sh ./src
+          test ! -d li-tests || bash lic/scripts/check-li-def-syntax.sh ./li-tests
 
       - name: Build lic
         working-directory: lic
