@@ -29,14 +29,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Checkout lic at li-toolchain pin
+      - uses: actions/checkout@v4
+        with:
+          repository: li-langverse/lic
+          path: lic
+          ref: 337573217951eee086f529f1f2452b680a28445c
+
+      - name: Assert li-toolchain lic_commit matches checkout
         run: |
           set -eo pipefail
-          COMMIT=$(grep '^lic_commit' li-toolchain.toml | cut -d'"' -f2)
-          test -n "$COMMIT"
-          git clone --depth 1 https://github.com/li-langverse/lic.git lic
-          git -C lic fetch --depth 1 origin "$COMMIT"
-          git -C lic checkout "$COMMIT"
+          PIN=$(grep '^lic_commit' li-toolchain.toml | cut -d'"' -f2)
+          test "$PIN" = "337573217951eee086f529f1f2452b680a28445c"
 
       - name: Enforce def syntax (no bare proc)
         run: |
