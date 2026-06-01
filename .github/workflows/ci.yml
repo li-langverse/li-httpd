@@ -1,6 +1,6 @@
 # Official package mirror CI — required for every li-langverse package repo.
 # Copied by: ./scripts/li-new-package --official  and  ./scripts/ensure-package-ci.sh
-# LLVM 22 via ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22 (apt.llvm.org; not noble default packages).
+# LLVM 22 via ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22
 name: CI
 
 on:
@@ -35,27 +35,22 @@ jobs:
           path: lic
           ref: 337573217951eee086f529f1f2452b680a28445c
 
-
       - name: Build lic
         working-directory: lic
         run: |
           chmod +x scripts/build.sh scripts/resolve-lic.sh 2>/dev/null || chmod +x scripts/build.sh
           ./scripts/build.sh
 
-      - name: lic check + smoke
+      - name: Sync mirror into lic workspace and lic check
         env:
           LIC: ${{ github.workspace }}/lic/build/compiler/lic/lic
           LI_REPO_ROOT: ${{ github.workspace }}/lic
         run: |
+          set -eo pipefail
           test -x "$LIC"
-          if [[ -f src/lib.li ]]; then
-            "$LIC" check src/lib.li
-          elif [[ -f src/main.li ]]; then
-            "$LIC" check src/main.li
-          else
-            echo "no src/lib.li or src/main.li"
-            exit 1
-          fi
-          if [[ -f li-tests/smoke/builds.li ]]; then
-            "$LIC" build li-tests/smoke/builds.li -o /dev/null
+          rsync -a "${GITHUB_WORKSPACE}/src/" "${GITHUB_WORKSPACE}/lic/packages/li-net-httpd/src/"
+          cd "${GITHUB_WORKSPACE}/lic"
+          "$LIC" check packages/li-net-httpd/src/lib.li
+          if [[ -f "${GITHUB_WORKSPACE}/li-tests/smoke/builds.li" ]]; then
+            "$LIC" build "${GITHUB_WORKSPACE}/li-tests/smoke/builds.li" -o /dev/null
           fi
