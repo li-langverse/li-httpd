@@ -37,8 +37,8 @@ jobs:
       - name: Mirror matches lic package tree
         run: |
           set -eo pipefail
-          diff -q src/lib.li lic/packages/li-net-httpd/src/lib.li
-          diff -q src/main.li lic/packages/li-net-httpd/src/main.li
+          cmp -s src/lib.li lic/packages/li-net-httpd/src/lib.li
+          cmp -s src/main.li lic/packages/li-net-httpd/src/main.li
 
       - name: Build lic
         working-directory: lic
