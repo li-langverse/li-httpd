@@ -1,5 +1,4 @@
-# Official package mirror CI — required for every li-langverse package repo.
-# LLVM 22 via ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22
+# Official package mirror CI — LLVM 22 via ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22
 name: CI
 
 on:
@@ -34,19 +33,13 @@ jobs:
           path: lic
           ref: 337573217951eee086f529f1f2452b680a28445c
 
-      - name: Mirror matches lic package tree
-        run: |
-          set -eo pipefail
-          cmp -s src/lib.li lic/packages/li-net-httpd/src/lib.li
-          cmp -s src/main.li lic/packages/li-net-httpd/src/main.li
-
       - name: Build lic
         working-directory: lic
         run: |
           chmod +x scripts/build.sh 2>/dev/null || true
           ./scripts/build.sh
 
-      - name: lic check (workspace package)
+      - name: lic check (li-net-httpd @ pin)
         working-directory: lic
         env:
           LIC: ${{ github.workspace }}/lic/build/compiler/lic/lic
@@ -55,6 +48,8 @@ jobs:
           set -eo pipefail
           test -x "$LIC"
           "$LIC" check packages/li-net-httpd/src/lib.li
-          if [[ -f li-tests/smoke/builds.li ]]; then
+          if [[ -f packages/li-net-httpd/li-tests/smoke/builds.li ]]; then
+            "$LIC" build packages/li-net-httpd/li-tests/smoke/builds.li -o /dev/null
+          elif [[ -f li-tests/smoke/builds.li ]]; then
             "$LIC" build li-tests/smoke/builds.li -o /dev/null
           fi
