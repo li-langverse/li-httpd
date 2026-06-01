@@ -33,7 +33,7 @@ jobs:
         id: pin
         run: |
           set -euo pipefail
-          COMMIT="$(grep -E '^lic_commit\s*=' li-toolchain.toml | sed -n 's/.*"\([^"]*\)".*/\1/p')"
+          COMMIT=$(grep '^lic_commit' li-toolchain.toml | cut -d'"' -f2)
           test -n "$COMMIT"
           echo "lic_commit=$COMMIT" >> "$GITHUB_OUTPUT"
 
