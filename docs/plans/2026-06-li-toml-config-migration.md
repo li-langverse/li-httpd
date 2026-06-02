@@ -1,3 +1,43 @@
+# Li-native TOML + httpd config migration (2026-06)
+
+## Goal
+
+Replace the Python `flatten-httpd-config.py` pipeline and the legacy C `runtime.conf` loader with a **Li-only** pipeline:
+
+- **`li-toml`**: Li-native TOML parser (generic `TomlDoc` / `TomlValue` tree)
+- **`li-httpd`**: config desugar/validate/apply (httpd-specific)
+- **benchmarks**: harness flag to select pipeline (`LI_HTTPD_CONFIG_PIPELINE`, default `python` during the transition)
+
+## Repo roles / branches
+
+| Repo | Branch | Role |
+|------|--------|------|
+| `li-toml` | `cursor/li-toml-config-migration` | TOML parser (Li only) |
+| `li-httpd` | `cursor/li-toml-config-migration` | Config desugar, gates, apply |
+| `benchmarks` | `feat/li-toml-config-pipeline` | Harness flag + parity wiring |
+| `lic` | *(no feature work)* | Pin only in `li-toolchain.toml` |
+
+## Phase loop contract
+
+The current phase is tracked in `data/li-toml-config-loop/state.json`.
+
+Rules per iteration:
+
+- Implement **only** the active phase.
+- Run that phase’s gate script.
+- Append one row to `data/li-toml-config-loop/iteration-log.md`.
+
+## Phases (high level)
+
+| Phase | Key | Deliverable | Gate |
+|------:|-----|-------------|------|
+| 0 | `phase-0-prep` | repo scaffolds + corpus wiring + benchmarks flag | `bash scripts/gates/phase-0-prep-gate.sh` |
+| A0 | `phase-a0-parse` | `li-toml` parses `li-tests/config/good/*.toml` | `bash scripts/gates/phase-a0-parse-gate.sh` |
+| B1 | `phase-b1-parity` | Li flatten byte-parity vs Python on good corpus; reject corpus fails | `bash scripts/gates/phase-b1-parity-gate.sh` |
+| B2 | `phase-b2-serve` | `li-httpd serve server.toml`; tier5 smoke with `LI_HTTPD_CONFIG_PIPELINE=li` | `bash scripts/gates/phase-b2-serve-gate.sh` |
+| C | `phase-c-retire-c` | Config applied in Li; no new C config keys | `bash scripts/gates/phase-c-retire-c-gate.sh` |
+| D | `phase-d-done` | Harness defaults to `pipeline=li`; Python flatten deprecated | `bash scripts/gates/li-toml-config-completion-gate.sh` |
+
 # Plan: Li-native TOML parser + httpd config migration
 
 **Status:** draft  
