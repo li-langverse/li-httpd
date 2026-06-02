@@ -1067,6 +1067,8 @@ def httpd_begin_worker_pool() raises Net, Alloc, IO -> int
     return 1
   return 0
 
+# Phase C: C strcmp loader key set is frozen (data/c-runtime-config-keys.freeze).
+# New httpd config fields must be desugared and applied in Li — not added in lic C.
 def httpd_run_from_runtime_config(path: var ptr) raises Net, Alloc, IO -> int
   requires true
   ensures true

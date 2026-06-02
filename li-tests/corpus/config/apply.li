@@ -1,0 +1,9 @@
+# Li-owned config apply surface (phase C). Transitional: loads frozen runtime.conf keys via C.
+import std.runtime.seam
+
+def httpd_apply_runtime_conf_path(path: var ptr) raises Net, Alloc, IO -> int
+  requires true
+  ensures result >= -1
+  decreases 0
+=
+  return httpd_load_runtime_config_i(path)

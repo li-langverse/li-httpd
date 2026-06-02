@@ -12,8 +12,9 @@ import json, pathlib, sys
 state_path = pathlib.Path("data/li-toml-config-loop/state.json")
 state = json.loads(state_path.read_text(encoding="utf-8"))
 phase = str(state.get("phase", ""))
-if phase != "phase-b2-serve":
-    print(f"phase-b2-serve-gate: state.json phase={phase!r} (want 'phase-b2-serve')", file=sys.stderr)
+allowed = ("phase-b2-serve", "phase-c-retire-c", "phase-d-done")
+if phase not in allowed:
+    print(f"phase-b2-serve-gate: state.json phase={phase!r} (want one of {allowed})", file=sys.stderr)
     raise SystemExit(1)
 PY
 
