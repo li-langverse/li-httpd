@@ -1,0 +1,9 @@
+# canonical routes (desugared)
+[[routes]]
+name = "get_health"
+priority = 0
+method = "GET"
+path = "/health"
+path_kind = "exact"
+action = "static:healthcheck"
+

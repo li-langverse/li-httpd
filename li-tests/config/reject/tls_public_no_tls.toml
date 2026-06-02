@@ -1,0 +1,10 @@
+[server]
+listen = "0.0.0.0:443"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+
+[routes]
+"GET /health" = "static:healthcheck"
