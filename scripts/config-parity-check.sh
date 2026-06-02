@@ -28,6 +28,10 @@ command -v "$PYTHON" >/dev/null 2>&1 || fail "missing python3 (set PYTHON)"
 OUT_DIR="${CONFIG_PARITY_OUT_DIR:-/tmp/li-httpd-config-parity}"
 mkdir -p "$OUT_DIR/good" "$OUT_DIR/reject"
 
+# Normalize runtime.conf for stable goldens (isolated clones have different ROOTs).
+NORMALIZE="$ROOT/scripts/normalize_runtime_conf.py"
+test -f "$NORMALIZE" || fail "missing normalizer: $NORMALIZE"
+
 # Golden baseline committed in-repo to make phase B1 reproducible even when the
 # legacy Python flattener evolves in lic. This is the reference that the
 # upcoming Li flattener must match (after any normalization rules are agreed).
@@ -73,14 +77,18 @@ for f in "${GOOD_FILES[@]}"; do
 
   golden="$GOLDEN_DIR/$base.runtime.conf"
   if [[ -f "$golden" ]]; then
-    if ! diff -u "$golden" "$out" >/dev/null; then
+    ng="$OUT_DIR/good/$base.golden.norm"
+    no="$OUT_DIR/good/$base.out.norm"
+    "$PYTHON" "$NORMALIZE" "$golden" >"$ng"
+    "$PYTHON" "$NORMALIZE" "$out" >"$no"
+    if ! diff -u "$ng" "$no" >/dev/null; then
       echo "config-parity-check: golden mismatch for $base" >&2
-      diff -u "$golden" "$out" >&2 || true
+      diff -u "$ng" "$no" >&2 || true
       fail "python baseline drifted for $f (update golden only with intent)"
     fi
   else
     # First-run bootstrap: write golden for this config.
-    cp -f "$out" "$golden"
+    "$PYTHON" "$NORMALIZE" "$out" >"$golden"
     echo "config-parity-check: wrote golden $golden"
   fi
 
