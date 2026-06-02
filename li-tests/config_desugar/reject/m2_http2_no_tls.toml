@@ -1,0 +1,17 @@
+# M2 reject: HTTP/2 without TLS terminate
+[server]
+listen = "127.0.0.1:8080"
+document_root = "./public"
+
+[server.http2]
+enabled = true
+
+[limits]
+rate_limit_rps = 60
+rate_limit_burst = 120
+
+[upstreams.api]
+peers = ["http://127.0.0.1:3000"]
+
+[routes]
+"POST /v1/*" = "proxy:api"

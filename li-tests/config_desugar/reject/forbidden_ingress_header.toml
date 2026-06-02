@@ -1,0 +1,5 @@
+[limits]
+rate_limit_rps = 10
+
+[routes]
+"GET /api/*  x-upstream-pool=evil" = "proxy:api"

@@ -1,0 +1,15 @@
+[server]
+listen = "0.0.0.0:443"
+host = "evil.example.com"
+document_root = "./public"
+
+[server.tls]
+mode = "self_signed"
+cert_dir = "./certs"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+
+[routes]
+"GET /health" = "static:healthcheck"

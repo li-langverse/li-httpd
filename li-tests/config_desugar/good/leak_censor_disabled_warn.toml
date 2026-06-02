@@ -1,0 +1,21 @@
+# Production with censorship off and no ack — validate-config warns (non-fatal).
+profile = "production"
+
+[server]
+listen = "127.0.0.1:39226"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 60
+rate_limit_burst = 120
+
+[leak_censor]
+enabled = false
+
+[upstreams.api]
+peers = ["http://127.0.0.1:11436"]
+
+[routes]
+"GET /health" = "static:healthcheck"

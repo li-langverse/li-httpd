@@ -1,0 +1,22 @@
+# rng-concepts — production must reject prng TLS without explicit escape hatch.
+profile = "production"
+
+[server]
+listen = "127.0.0.1:8443"
+document_root = "./public"
+
+[server.tls]
+mode = "self_signed"
+cert_dir = "./certs"
+min_protocol = "1.3"
+
+[server.rng]
+mode = "prng"
+seed = 42
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+
+[routes]
+"GET /health" = "static:healthcheck"

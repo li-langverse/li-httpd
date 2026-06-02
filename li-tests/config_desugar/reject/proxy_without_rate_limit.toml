@@ -1,0 +1,14 @@
+# Proxy route without limits.rate_limit_rps — must reject (M1 agent gateway policy)
+[server]
+listen = ":443"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+
+[upstreams.api]
+peers = ["http://127.0.0.1:3000"]
+
+[routes]
+"POST /v1/*" = "proxy:api"
