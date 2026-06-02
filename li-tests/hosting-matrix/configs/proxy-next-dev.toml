@@ -1,0 +1,16 @@
+# Reverse proxy to Next.js dev server (next dev -p 39237).
+[server]
+listen = "127.0.0.1:39238"
+document_root = "../static"
+
+[limits]
+rate_limit_rps = 10000
+rate_limit_burst = 20000
+
+[upstreams.next]
+peers = ["http://127.0.0.1:39237"]
+
+[routes]
+"GET /index.html" = "proxy:next"
+"GET /assets/**" = "proxy:next"
+"GET /_next/**" = "proxy:next"

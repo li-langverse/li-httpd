@@ -1,0 +1,12 @@
+# Static HTML/CSS/JS via TOML routes (li-httpd serve).
+[server]
+listen = "127.0.0.1:39230"
+document_root = "../static"
+
+[limits]
+rate_limit_rps = 10000
+rate_limit_burst = 20000
+
+[routes]
+"GET /index.html" = "static"
+"GET /assets/**" = "static:assets"
