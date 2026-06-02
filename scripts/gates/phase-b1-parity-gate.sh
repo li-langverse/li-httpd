@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
 set -euo pipefail
-echo "phase-b1-parity-gate: NOT IMPLEMENTED (run scripts/config-parity-check.sh)"
-exit 1
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+bash "$ROOT/scripts/config-parity-check.sh"
+echo "phase-b1-parity-gate: OK"
