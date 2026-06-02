@@ -1,0 +1,10 @@
+# Copied from examples/websocket_proxy.toml for corpus seeding.
+[server]
+listen = "127.0.0.1:18080"
+
+[upstreams.ws]
+peers = ["http://127.0.0.1:18081"]
+
+[routes]
+"GET /ws" = "proxy:ws"
+

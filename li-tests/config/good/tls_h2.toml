@@ -1,0 +1,9 @@
+# Copied from examples/tls_h2.toml for corpus seeding.
+[server]
+listen = "127.0.0.1:8443"
+listen_http = "127.0.0.1:8080"
+
+[tls]
+cert = "./certs/localhost.crt"
+key = "./certs/localhost.key"
+
