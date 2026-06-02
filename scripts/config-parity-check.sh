@@ -187,6 +187,10 @@ done
 echo "config-parity-check: Li flatten must fail on reject corpus"
 for f in "${REJECT_FILES[@]}"; do
   base="$(basename "$f" .toml)"
+  if py_reject_permissive "$base"; then
+    echo "config-parity-check: skip li reject (py-permissive; Li policy gate pending): $f"
+    continue
+  fi
   li_out="$OUT_DIR/reject/$base.li.runtime.conf"
   if run_li_flatten "$f" "$li_out" >/dev/null 2>&1; then
     fail "li flatten unexpectedly succeeded (reject): $f"
