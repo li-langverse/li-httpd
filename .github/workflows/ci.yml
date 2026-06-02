@@ -33,6 +33,12 @@ jobs:
           path: lic
           ref: 337573217951eee086f529f1f2452b680a28445c
 
+      - uses: actions/checkout@v4
+        with:
+          repository: li-langverse/li-toml
+          path: li-toml
+          ref: cursor/li-toml-config-migration
+
       - name: Build lic
         working-directory: lic
         run: |
@@ -58,3 +64,15 @@ jobs:
             packages/li-net-httpd/src/main.li -o /tmp/li-httpd-ci
           "$LIC" build --allow-open-vc --no-lean-verify \
             packages/li-net-httpd/li-tests/smoke/builds.li -o /dev/null
+
+      - name: Config migration gates (phase A0 + B1)
+        shell: bash
+        env:
+          LIC_ROOT: ${{ github.workspace }}/lic
+          LI_TOML_ROOT: ${{ github.workspace }}/li-toml
+          LIC: ${{ github.workspace }}/lic/build/compiler/lic/lic
+        run: |
+          set -eo pipefail
+          ln -sfn "$LI_TOML_ROOT" ../li-toml
+          bash scripts/gates/phase-a0-parse-gate.sh
+          bash scripts/gates/phase-b1-parity-gate.sh

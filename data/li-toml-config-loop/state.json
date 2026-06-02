@@ -1,9 +1,10 @@
 {
   "sprint": "li-toml-config-migration",
-  "phase": "phase-b1-parity",
+  "phase": "phase-b2-serve",
   "branch": "cursor/li-toml-config-migration",
   "started_at": "2026-06-02T00:00:00Z",
   "phase_0_completed_at": "2026-06-02T05:36:00Z",
   "phase_a0_completed_at": "2026-06-02T06:56:54Z",
-  "notes": "Phase a0 complete: li-toml parses good TOMLs."
+  "phase_b1_completed_at": "2026-06-02T11:08:00Z",
+  "notes": "Phase B1: Li flatten corpus emitter + parity gate (python baseline + li vs python)."
 }

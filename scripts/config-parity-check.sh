@@ -77,6 +77,15 @@ run_py_flatten() {
   "$PYTHON" "$PY_FLATTEN" "$in_toml" -o "$out_conf"
 }
 
+LI_FLATTEN="$ROOT/scripts/flatten-httpd-config-li.sh"
+test -x "$LI_FLATTEN" || LI_FLATTEN="bash $ROOT/scripts/flatten-httpd-config-li.sh"
+
+run_li_flatten() {
+  local in_toml="$1"
+  local out_conf="$2"
+  bash "$ROOT/scripts/flatten-httpd-config-li.sh" "$in_toml" -o "$out_conf"
+}
+
 echo "config-parity-check: python flatten on good corpus"
 tested_good=0
 for f in "${GOOD_FILES[@]}"; do
@@ -127,5 +136,36 @@ for f in "${REJECT_FILES[@]}"; do
   fi
 done
 
-echo "config-parity-check: OK (python baseline only; li parity pending)"
+echo "config-parity-check: Li flatten parity on good corpus"
+for f in "${GOOD_FILES[@]}"; do
+  if ! grep -qE '(^server\.listen\b|^\[server\])' "$f"; then
+    continue
+  fi
+  base="$(basename "$f" .toml)"
+  py_out="$OUT_DIR/good/$base.runtime.conf"
+  li_out="$OUT_DIR/good/$base.li.runtime.conf"
+  if ! run_li_flatten "$f" "$li_out" >/dev/null 2>&1; then
+    fail "li flatten failed (good): $f"
+  fi
+  np="$OUT_DIR/good/$base.py.norm"
+  nl="$OUT_DIR/good/$base.li.norm"
+  "$PYTHON" "$NORMALIZE" "$py_out" >"$np"
+  "$PYTHON" "$NORMALIZE" "$li_out" >"$nl"
+  if ! diff -u "$np" "$nl" >/dev/null; then
+    echo "config-parity-check: li/python mismatch for $base" >&2
+    diff -u "$np" "$nl" >&2 || true
+    fail "li flatten != python for $f"
+  fi
+done
+
+echo "config-parity-check: Li flatten must fail on reject corpus"
+for f in "${REJECT_FILES[@]}"; do
+  base="$(basename "$f" .toml)"
+  li_out="$OUT_DIR/reject/$base.li.runtime.conf"
+  if run_li_flatten "$f" "$li_out" >/dev/null 2>&1; then
+    fail "li flatten unexpectedly succeeded (reject): $f"
+  fi
+done
+
+echo "config-parity-check: OK (python baseline + li parity)"
 

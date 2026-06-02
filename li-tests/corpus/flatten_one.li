@@ -1,0 +1,56 @@
+# Flatten one httpd TOML to runtime.conf on stdout (phase B1 harness).
+# Usage: flatten_one <config.toml>
+# Exit: 0 ok, 1 reject/validation fail, 2 unknown config, 3 parse fail
+
+import config.flatten
+import std.bytes
+import std.runtime.seam
+
+extern proc net_buf_fill_i(dst: var ptr, src: var ptr, off: int, n: int) raises IO -> int
+  requires true
+  ensures true
+  decreases 0
+
+def slurp_file(path: var ptr) raises IO, Alloc -> ptr
+  requires true
+  ensures true
+  decreases 0
+=
+  var fd: int = net_open_readonly_i(path)
+  if fd < 0:
+    return path
+  var sz: int = net_fstat_size(fd)
+  if sz < 0:
+    net_close_fd(fd)
+    return path
+  if sz == 0:
+    net_close_fd(fd)
+    var empty: bytes = ""
+    return empty
+  var buf: ptr = net_buf_alloc(sz + 1)
+  var rd: int = net_read_fd(fd, buf, sz)
+  net_close_fd(fd)
+  if rd < 0:
+    net_buf_free(buf)
+    return path
+  var z: bytes = ""
+  z = bytes_push_byte(z, 0)
+  net_buf_fill_i(buf, z, rd, 1)
+  return buf
+
+def main() raises IO, Alloc -> int
+  requires true
+  ensures 0 <= result
+  ensures result <= 3
+  decreases 0
+=
+  if li_rt_argc() < 2:
+    return 2
+  var path: ptr = li_rt_argv_i(1)
+  var text: ptr = slurp_file(path)
+  var len: int = bytes_len_i(text)
+  if len <= 0:
+    return 3
+  var rc: int = httpd_flatten_toml_path(path, text, len)
+  net_buf_free(text)
+  return rc

@@ -7,6 +7,7 @@ description = "Li package li-httpd"
 
 [dependencies]
 li-net = { path = "../li-net" }
+li-toml = { path = "../li-toml" }
 # path = { path = "../other" }   # lip 8b+
 # registry = "1.0.0"             # lip 8d+
 
