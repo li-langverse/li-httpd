@@ -1,0 +1,17 @@
+# canonical routes (desugared)
+[[routes]]
+name = "post_v1_wild"
+priority = 0
+method = "POST"
+path = "/v1"
+path_kind = "prefix"
+action = "proxy:pool_gpt4" [x-model=gpt-4]
+
+[[routes]]
+name = "get_files_rest"
+priority = 1
+method = "GET"
+path = "/files"
+path_kind = "prefix_strip"
+action = "static:files"
+

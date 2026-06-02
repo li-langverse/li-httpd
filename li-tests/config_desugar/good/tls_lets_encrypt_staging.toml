@@ -1,0 +1,27 @@
+# M1.5 TLS auto — Let's Encrypt staging (setup-tls --dry-run)
+[server]
+listen = "0.0.0.0:443"
+host = "api.staging.example.com"
+document_root = "./public"
+email = "ops@staging.example.com"
+
+[server.tls]
+mode = "lets_encrypt"
+cert_dir = "./certs-staging"
+min_protocol = "1.3"
+renew_before = "30d"
+
+[server.tls.lets_encrypt]
+email = "ops@staging.example.com"
+domains = ["api.staging.example.com"]
+environment = "staging"
+http01_bind = "0.0.0.0:80"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 120
+rate_limit_burst = 240
+
+[routes]
+"GET /health" = "static:healthcheck"

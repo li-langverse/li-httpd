@@ -1,0 +1,53 @@
+# Helpers for config flatten harness (basename compare, path basename).
+
+import std.runtime.seam
+
+def flatten_basename_eq(stem: var ptr, lit: var ptr) -> int
+  requires true
+  ensures 0 <= result
+  ensures result <= 1
+  decreases 0
+=
+  if stem == 0:
+    return 0
+  if lit == 0:
+    return 0
+  var i: int = 0
+  while i < 128:
+    var ch: int = net_byte_at_i(lit, i)
+    if ch == 0:
+      var tail: int = net_byte_at_i(stem, i)
+      if tail == 0:
+        return 1
+      if tail == 46:
+        return 1
+      return 0
+    if net_byte_at_i(stem, i) != ch:
+      return 0
+    i = i + 1
+  return 0
+
+def flatten_path_stem(path: var ptr) raises Alloc -> ptr
+  requires true
+  ensures true
+  decreases 0
+=
+  if path == 0:
+    return path
+  var len: int = bytes_len_i(path)
+  if len <= 0:
+    return path
+  var end: int = len
+  var i: int = len - 1
+  while i >= 0:
+    var b: int = net_byte_at_i(path, i)
+    if b == 46:
+      end = i
+    if b == 47:
+      return bytes_slice_i(path, i + 1, end - i - 1)
+    if b == 92:
+      return bytes_slice_i(path, i + 1, end - i - 1)
+    i = i - 1
+  if end < len:
+    return bytes_slice_i(path, 0, end)
+  return path

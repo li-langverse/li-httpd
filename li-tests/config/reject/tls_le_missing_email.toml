@@ -1,0 +1,12 @@
+[server]
+listen = "0.0.0.0:443"
+host = "api.example.com"
+document_root = "./public"
+tls = "lets_encrypt"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+
+[routes]
+"GET /health" = "static:healthcheck"

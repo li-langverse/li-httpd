@@ -1,0 +1,25 @@
+# M2 reject: webhook allowlist must not include loopback/private hosts
+[server]
+listen = "127.0.0.1:8443"
+document_root = "./public"
+
+[server.tls]
+mode = "self_signed"
+min_protocol = "1.3"
+terminate = true
+
+[server.tls.self_signed]
+dev = true
+
+[webhooks]
+allow = ["https://127.0.0.1/callback"]
+
+[limits]
+rate_limit_rps = 60
+rate_limit_burst = 120
+
+[upstreams.api]
+peers = ["http://127.0.0.1:3000"]
+
+[routes]
+"POST /v1/*" = "proxy:api"

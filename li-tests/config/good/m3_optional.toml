@@ -1,0 +1,44 @@
+# M3 optional — L4 stream config + token-budget hook (RFC + oracle; relay deferred)
+[server]
+listen = "127.0.0.1:8443"
+document_root = "./public"
+
+[server.tls]
+mode = "self_signed"
+cert_dir = "./certs-m3"
+min_protocol = "1.3"
+terminate = true
+
+[server.tls.self_signed]
+dev = true
+valid_days = 90
+
+[server.l4_stream]
+enabled = true
+listen = "127.0.0.1:9443"
+upstream_host = "127.0.0.1"
+upstream_port = 11435
+max_connections = 512
+allow_private_upstream = true
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 60
+rate_limit_burst = 120
+stream_idle_timeout = "120s"
+stream_max_duration = "600s"
+concurrent_streams = 100
+
+[limits.token_budget]
+enabled = true
+header = "x-token-budget"
+max_per_request = 500000
+reject_over_cap = true
+
+[upstreams.llm_default]
+peers = ["http://127.0.0.1:11434"]
+
+[routes]
+"GET /health" = "static:healthcheck"
+"POST /v1/chat/* require=traceparent" = "proxy:llm_default"

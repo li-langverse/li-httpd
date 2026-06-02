@@ -1,0 +1,17 @@
+# canonical routes (desugared)
+[[routes]]
+name = "get_health"
+priority = 0
+method = "GET"
+path = "/health"
+path_kind = "exact"
+action = "static:healthcheck"
+
+[[routes]]
+name = "post_v1_wild"
+priority = 1
+method = "POST"
+path = "/v1"
+path_kind = "prefix"
+action = "proxy:api"
+

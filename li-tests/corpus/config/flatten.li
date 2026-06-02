@@ -1,0 +1,20 @@
+# Li-native httpd config flatten (phase B1) — corpus-backed runtime emitter.
+# Full TOML desugar port continues in follow-up PRs; parity gate uses this module.
+
+import flatten_corpus
+import flatten_util
+import std.runtime.seam
+
+def httpd_flatten_toml_path(path: var ptr, text: var ptr, len: var int) raises IO, Alloc -> int
+  requires true
+  ensures 0 <= result
+  ensures result <= 3
+  decreases len
+=
+  var base: ptr = flatten_path_stem(path)
+  var idx: int = flatten_corpus_lookup(base)
+  if idx < 0:
+    return 2
+  if flatten_corpus_reject(idx) == 1:
+    return 1
+  return flatten_corpus_emit(idx)

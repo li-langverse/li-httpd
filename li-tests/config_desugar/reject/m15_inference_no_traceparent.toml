@@ -1,0 +1,17 @@
+[server]
+listen = ":39225"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 60
+stream_idle_timeout = "60s"
+stream_max_duration = "300s"
+concurrent_streams = 10
+
+[upstreams.api]
+peers = ["http://127.0.0.1:3000"]
+
+[routes]
+"POST /v1/chat/*" = "proxy:api"

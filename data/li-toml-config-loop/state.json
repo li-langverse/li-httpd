@@ -1,0 +1,13 @@
+{
+  "sprint": "li-toml-config-migration",
+  "phase": "phase-d-done",
+  "branch": "cursor/li-toml-config-migration",
+  "started_at": "2026-06-02T00:00:00Z",
+  "phase_0_completed_at": "2026-06-02T05:36:00Z",
+  "phase_a0_completed_at": "2026-06-02T06:56:54Z",
+  "phase_b1_completed_at": "2026-06-02T11:08:00Z",
+  "phase_b2_completed_at": "2026-06-02T12:50:00Z",
+  "phase_c_completed_at": "2026-06-02T13:00:00Z",
+  "phase_d_completed_at": "2026-06-02T13:45:00Z",
+  "notes": "Phase D: harness default pipeline=li; Python flatten deprecated; completion gate green."
+}

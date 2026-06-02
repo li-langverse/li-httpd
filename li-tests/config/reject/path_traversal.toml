@@ -1,0 +1,2 @@
+[routes]
+"GET /../secret" = "static:bad"

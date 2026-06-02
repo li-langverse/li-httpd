@@ -1,0 +1,10 @@
+[limits]
+rate_limit_rps = 60
+rate_limit_burst = 120
+
+[upstreams.pool_gpt4]
+peers = ["http://127.0.0.1:11435"]
+
+[routes]
+"POST /v1/*  x-model=gpt-4" = "proxy:pool_gpt4"
+"GET /files/**" = "static:files"
