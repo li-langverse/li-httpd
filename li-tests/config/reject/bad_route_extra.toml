@@ -1,0 +1,2 @@
+[routes]
+"GET /api  not-a-header" = "static:bad"

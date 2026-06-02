@@ -1,0 +1,28 @@
+# M1.5 agent gateway — SSE stream limits, model routing, OTel traceparent
+[server]
+listen = "127.0.0.1:39223"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 60
+rate_limit_burst = 120
+stream_idle_timeout = "120s"
+stream_max_duration = "600s"
+concurrent_streams = 100
+
+[upstreams.llm_default]
+peers = ["http://127.0.0.1:11434"]
+
+[upstreams.pool_gpt4]
+peers = ["http://127.0.0.1:11435"]
+
+[[route.match]]
+header = "x-model"
+value = "gpt-4"
+proxy = "pool_gpt4"
+
+[routes]
+"GET /health" = "static:healthcheck"
+"POST /v1/chat/* require=traceparent" = "proxy:llm_default"

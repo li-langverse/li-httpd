@@ -1,0 +1,19 @@
+# M3 reject — token_budget header must be x-* custom dimension
+[server]
+listen = "127.0.0.1:8080"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+rate_limit_rps = 60
+
+[limits.token_budget]
+enabled = true
+header = "Authorization"
+max_per_request = 1000
+
+[upstreams.llm_default]
+peers = ["http://127.0.0.1:11434"]
+
+[routes]
+"POST /v1/chat/*" = "proxy:llm_default"

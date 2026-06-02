@@ -1,0 +1,28 @@
+# M1.5 leak_censor — optional egress scrub + setup-censor generated paths
+[server]
+listen = "127.0.0.1:39224"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 60
+rate_limit_burst = 120
+
+[leak_censor]
+enabled = true
+on_detect = "redact"
+
+[leak_censor.json]
+deny_paths = ["$.api_key"]
+include_generated = true
+
+[leak_censor.patterns]
+allow = ["openai_sk", "jwt_bearer", "pem_private"]
+
+[upstreams.api]
+peers = ["http://127.0.0.1:11436"]
+
+[routes]
+"GET /health" = "static:healthcheck"
+"POST /v1/*" = "proxy:api"

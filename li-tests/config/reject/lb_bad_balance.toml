@@ -1,0 +1,17 @@
+# Reject unknown upstream balance enum (gap-lb-sticky-sessions schema gate)
+[server]
+listen = "127.0.0.1:39222"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 60
+rate_limit_burst = 120
+
+[upstreams.api]
+balance = "magic_hash"
+peers = ["http://127.0.0.1:11434"]
+
+[routes]
+"GET /health" = "static:healthcheck"

@@ -1,0 +1,20 @@
+# M3 reject — loopback upstream without allow_private_upstream (SSRF guard)
+[server]
+listen = "127.0.0.1:8443"
+document_root = "./public"
+
+[server.l4_stream]
+enabled = true
+listen = "127.0.0.1:9443"
+upstream_host = "127.0.0.1"
+upstream_port = 11435
+
+[limits]
+max_body = "1m"
+rate_limit_rps = 60
+
+[upstreams.llm_default]
+peers = ["http://127.0.0.1:11434"]
+
+[routes]
+"POST /v1/chat/*" = "proxy:llm_default"

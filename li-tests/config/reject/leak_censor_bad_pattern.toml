@@ -1,0 +1,18 @@
+[server]
+listen = ":39225"
+document_root = "./public"
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+rate_limit_rps = 10
+rate_limit_burst = 20
+
+[leak_censor]
+enabled = true
+
+[leak_censor.patterns]
+allow = ["regex_user_supplied"]
+
+[routes]
+"GET /" = "static:index"

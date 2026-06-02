@@ -1,0 +1,17 @@
+# canonical routes (desugared)
+[[routes]]
+name = "get_health"
+priority = 0
+method = "GET"
+path = "/health"
+path_kind = "exact"
+action = "static:healthcheck"
+
+[[routes]]
+name = "post_v1_chat_wild"
+priority = 1
+method = "POST"
+path = "/v1/chat"
+path_kind = "prefix"
+action = "proxy:llm_default" [require=traceparent]
+
