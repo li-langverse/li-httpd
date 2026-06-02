@@ -3,7 +3,7 @@
 
 import flatten_corpus
 import flatten_util
-import li_toml
+import toml
 import std.runtime.seam
 
 def httpd_flatten_toml_path(path: var ptr, text: var ptr, len: var int) raises IO, Alloc -> int

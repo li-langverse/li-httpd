@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+fail() { echo "li-httpd: $*" >&2; exit 2; }
+
+usage() {
+  cat >&2 <<'EOF'
+Usage:
+  li-httpd serve <config.toml>
+  li-httpd config flatten <config.toml> [-o out.conf]
+
+Env:
+  LI_HTTPD_CONFIG_PIPELINE=li|python|dual   (default: li for this repo wrapper)
+EOF
+  exit 2
+}
+
+if [[ $# -lt 1 ]]; then usage; fi
+
+cmd="$1"
+shift
+
+ensure_server_bin() {
+  if [[ ! -x "$ROOT/build/li-httpd" ]]; then
+    bash "$ROOT/scripts/build-li-httpd.sh"
+  fi
+}
+
+emit_runtime_conf_li() {
+  local in_toml="$1"
+  local out_conf="$2"
+
+  local raw
+  raw="$(mktemp)"
+  trap 'rm -f "$raw"' RETURN
+
+  # Emits conf with record separators and <ROOT> placeholders.
+  bash "$ROOT/scripts/flatten-httpd-config-li.sh" "$in_toml" -o "$raw"
+
+  python3 - "$ROOT" "$raw" "$out_conf" <<'PY'
+import sys
+from pathlib import Path
+
+root = sys.argv[1]
+raw_path = Path(sys.argv[2])
+out_path = Path(sys.argv[3])
+
+text = raw_path.read_text(encoding="utf-8")
+text = text.replace("<ROOT>", root)
+if text and not text.endswith("\n"):
+    text += "\n"
+out_path.write_text(text, encoding="utf-8")
+PY
+}
+
+case "$cmd" in
+  serve)
+    [[ $# -ge 1 ]] || usage
+    cfg="$1"
+    shift || true
+    [[ $# -eq 0 ]] || usage
+
+    pipeline="${LI_HTTPD_CONFIG_PIPELINE:-li}"
+    ensure_server_bin
+
+    if [[ "$pipeline" == "li" ]]; then
+      conf="$(mktemp --suffix=.conf)"
+      trap 'rm -f "$conf"' EXIT
+      emit_runtime_conf_li "$cfg" "$conf"
+      exec "$ROOT/build/li-httpd" "$conf"
+    fi
+
+    fail "pipeline '$pipeline' not implemented in wrapper (use LI_HTTPD_CONFIG_PIPELINE=li)"
+    ;;
+
+  config)
+    [[ $# -ge 1 ]] || usage
+    sub="$1"
+    shift
+    case "$sub" in
+      flatten)
+        [[ $# -ge 1 ]] || usage
+        cfg="$1"
+        shift
+        out=""
+        if [[ "${1:-}" == "-o" ]]; then
+          out="${2:?}"
+          shift 2
+        fi
+        [[ $# -eq 0 ]] || usage
+
+        if [[ -n "$out" ]]; then
+          emit_runtime_conf_li "$cfg" "$out"
+          exit 0
+        fi
+        tmp="$(mktemp --suffix=.conf)"
+        trap 'rm -f "$tmp"' EXIT
+        emit_runtime_conf_li "$cfg" "$tmp"
+        cat "$tmp"
+        ;;
+      *)
+        usage
+        ;;
+    esac
+    ;;
+
+  *)
+    usage
+    ;;
+esac
+
