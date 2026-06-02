@@ -13,8 +13,28 @@ test -d "$REJECT_DIR" || fail "missing reject corpus dir: $REJECT_DIR"
 # We intentionally do not vendor/copy the Python scripts into li-httpd.
 LIC_ROOT="${LIC_ROOT:-}"
 if [[ -z "$LIC_ROOT" ]]; then
+  # Common CI/container path.
   if [[ -d /workspace/lic && -f /workspace/lic/scripts/flatten-httpd-config.py ]]; then
     LIC_ROOT="/workspace/lic"
+  fi
+fi
+if [[ -z "$LIC_ROOT" ]]; then
+  # Common sibling layout when working locally.
+  if [[ -d "$ROOT/../lic" && -f "$ROOT/../lic/scripts/flatten-httpd-config.py" ]]; then
+    LIC_ROOT="$ROOT/../lic"
+  fi
+fi
+if [[ -z "$LIC_ROOT" ]]; then
+  # Isolated workflow layout:
+  #   .../li-langverse/lic/<run>/repo
+  cands=( "$ROOT/../../lic/"*/repo )
+  if (( ${#cands[@]} > 0 )); then
+    for c in "${cands[@]}"; do
+      if [[ -f "$c/scripts/flatten-httpd-config.py" ]]; then
+        LIC_ROOT="$c"
+        break
+      fi
+    done
   fi
 fi
 test -d "$LIC_ROOT" || fail "missing LIC_ROOT (set LIC_ROOT or mount /workspace/lic)"
