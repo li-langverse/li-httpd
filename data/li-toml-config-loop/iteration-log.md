@@ -8,3 +8,4 @@
 | 2026-06-02 | phase-b1-parity | code_implementer | phase-b1-parity-gate.sh OK | Synced loop/gates + added `scripts/config-parity-check.sh` and `li-tests/config` corpus to enable parity gating in fresh clones. |
 | 2026-06-02 | phase-b1-parity | code_implementer | phase-b1-parity-gate.sh OK | Verified parity gate passes in workflow clone (`LIC_ROOT=/workspace/lic`). |
 | 2026-06-02 | phase-b1-parity | code_implementer | phase-b1-parity-gate.sh OK | Fixed parity gate reproducibility across isolated clones by normalizing absolute repo paths in `runtime.conf` before golden diffs. |
+| 2026-06-02 | phase-b1-parity | code_implementer | phase-b1-parity-gate.sh OK | Re-verified parity gate passes in isolated workflow clone (python baseline; Li parity still pending). |
