@@ -1,8 +1,9 @@
 {
   "sprint": "li-toml-config-migration",
-  "phase": "phase-a0-parse",
+  "phase": "phase-b1-parity",
   "branch": "cursor/li-toml-config-migration",
   "started_at": "2026-06-02T00:00:00Z",
   "phase_0_completed_at": "2026-06-02T05:36:00Z",
-  "notes": "Phase 0 complete: li-toml scaffold, config corpus copied to li-httpd."
+  "phase_a0_completed_at": "2026-06-02T06:56:54Z",
+  "notes": "Phase a0 complete: li-toml parses good TOMLs."
 }
