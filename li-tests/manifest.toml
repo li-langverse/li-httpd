@@ -1,3 +1,5 @@
+[suite.config]
+path = "config"
 # Package-local tests — also register in monorepo li-tests/manifest.toml when integrated.
 
 [[tests]]
