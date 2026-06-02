@@ -8,6 +8,7 @@ GATES=(
   phase-b1-parity-gate.sh
   phase-b2-serve-gate.sh
   phase-c-retire-c-gate.sh
+  phase-d-done-gate.sh
 )
 for g in "${GATES[@]}"; do
   bash "$ROOT/scripts/gates/$g"

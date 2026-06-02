@@ -18,3 +18,4 @@
 | 2026-06-02 | phase-b2-serve | code_implementer | phase-b2-serve-gate.sh OK | Fixed phase gate to authenticate against `auth_bearer.toml` (adds bearer header in curl). Also made flatten harness build reproducible in isolated clones. |
 | 2026-06-02 | phase-c-retire-c | code_implementer | phase-c-retire-c-gate.sh OK | Froze 40 C runtime.conf keys; lint + Li apply surface (`apply.li`); CI runs B2+C gates. |
 | 2026-06-02 | phase-c-retire-c | code_implementer | phase-c-retire-c-gate.sh OK | Re-verified Phase C gate in isolated workflow clone (freeze lint + parity check). |
+| 2026-06-02 | phase-d-done | code_implementer | li-toml-config-completion-gate.sh OK | Default `LI_HTTPD_CONFIG_PIPELINE=li` in benchmarks; `harness/httpd_flatten.py`; Python flatten deprecated. |

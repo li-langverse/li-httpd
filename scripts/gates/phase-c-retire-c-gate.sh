@@ -10,8 +10,8 @@ python3 - <<'PY'
 import json, pathlib, sys
 state = json.loads(pathlib.Path("data/li-toml-config-loop/state.json").read_text(encoding="utf-8"))
 phase = str(state.get("phase", ""))
-if phase != "phase-c-retire-c":
-    print(f"phase-c-retire-c-gate: state.json phase={phase!r} (want 'phase-c-retire-c')", file=sys.stderr)
+if phase not in ("phase-c-retire-c", "phase-d-done"):
+    print(f"phase-c-retire-c-gate: state.json phase={phase!r} (want 'phase-c-retire-c' or 'phase-d-done')", file=sys.stderr)
     raise SystemExit(1)
 PY
 

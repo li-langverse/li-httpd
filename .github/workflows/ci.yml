@@ -65,12 +65,13 @@ jobs:
           "$LIC" build --allow-open-vc --no-lean-verify \
             packages/li-net-httpd/li-tests/smoke/builds.li -o /dev/null
 
-      - name: Config migration gates (A0 + B1 + B2 + C)
+      - name: Config migration gates (A0–D + completion)
         shell: bash
         env:
           LIC_ROOT: ${{ github.workspace }}/lic
           LI_TOML_ROOT: ${{ github.workspace }}/li-toml
           LIC: ${{ github.workspace }}/lic/build/compiler/lic/lic
+          LI_HTTPD_ROOT: ${{ github.workspace }}
         run: |
           set -eo pipefail
           ln -sfn "$LI_TOML_ROOT" ../li-toml
@@ -78,3 +79,4 @@ jobs:
           bash scripts/gates/phase-b1-parity-gate.sh
           bash scripts/gates/phase-b2-serve-gate.sh
           bash scripts/gates/phase-c-retire-c-gate.sh
+          bash scripts/gates/phase-d-done-gate.sh
