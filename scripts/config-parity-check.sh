@@ -28,6 +28,12 @@ command -v "$PYTHON" >/dev/null 2>&1 || fail "missing python3 (set PYTHON)"
 OUT_DIR="${CONFIG_PARITY_OUT_DIR:-/tmp/li-httpd-config-parity}"
 mkdir -p "$OUT_DIR/good" "$OUT_DIR/reject"
 
+# Golden baseline committed in-repo to make phase B1 reproducible even when the
+# legacy Python flattener evolves in lic. This is the reference that the
+# upcoming Li flattener must match (after any normalization rules are agreed).
+GOLDEN_DIR="$ROOT/li-tests/config/golden_runtime_conf"
+mkdir -p "$GOLDEN_DIR"
+
 shopt -s nullglob
 GOOD_FILES=( "$GOOD_DIR"/*.toml )
 REJECT_FILES=( "$REJECT_DIR"/*.toml )
@@ -64,6 +70,20 @@ for f in "${GOOD_FILES[@]}"; do
   if [[ ! -s "$out" ]]; then
     fail "python flatten produced empty conf (good): $f"
   fi
+
+  golden="$GOLDEN_DIR/$base.runtime.conf"
+  if [[ -f "$golden" ]]; then
+    if ! diff -u "$golden" "$out" >/dev/null; then
+      echo "config-parity-check: golden mismatch for $base" >&2
+      diff -u "$golden" "$out" >&2 || true
+      fail "python baseline drifted for $f (update golden only with intent)"
+    fi
+  else
+    # First-run bootstrap: write golden for this config.
+    cp -f "$out" "$golden"
+    echo "config-parity-check: wrote golden $golden"
+  fi
+
   tested_good=$((tested_good + 1))
 done
 if (( tested_good == 0 )); then
