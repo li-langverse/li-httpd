@@ -15,3 +15,4 @@
 | 2026-06-02 | phase-b1-parity | code_implementer | phase-b1-parity-gate.sh OK | Improved `LIC_ROOT` auto-discovery in `scripts/config-parity-check.sh` for sibling + isolated-workspace layouts. |
 | 2026-06-02 | phase-b1-parity | code_implementer | phase-b1-parity-gate.sh OK | Added benchmarks env flag `LI_HTTPD_CONFIG_PIPELINE` (default `python`) and fixed a new TOML sample that broke the parity corpus. |
 | 2026-06-02 | phase-b1-parity | code_implementer | phase-b1-parity-gate.sh OK | Li flatten harness (`flatten_one` + `flatten-httpd-config-li.sh`); 13/13 good configs byte-parity vs Python; reject corpus fails. Advanced to phase-b2-serve. |
+| 2026-06-02 | phase-b2-serve | code_implementer | phase-b2-serve-gate.sh OK | Fixed phase gate to authenticate against `auth_bearer.toml` (adds bearer header in curl). Also made flatten harness build reproducible in isolated clones. |

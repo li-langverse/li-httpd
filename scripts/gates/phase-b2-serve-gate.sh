@@ -33,7 +33,9 @@ if command -v curl >/dev/null 2>&1; then
   pid="$!"
   # Wait briefly for listen.
   for _ in $(seq 1 30); do
-    if curl -fsS --max-time 0.2 "http://127.0.0.1:${PORT}/index.html" >/dev/null 2>&1; then
+    # Fixture requires bearer auth; gate should validate the "serve" path, not auth rejection.
+    if curl -fsS --max-time 0.2 -H "Authorization: Bearer dev-agent-key" \
+      "http://127.0.0.1:${PORT}/index.html" >/dev/null 2>&1; then
       kill "$pid" >/dev/null 2>&1 || true
       wait "$pid" >/dev/null 2>&1 || true
       echo "phase-b2-serve-gate: ok"

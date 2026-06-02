@@ -3,7 +3,6 @@
 
 import flatten_corpus
 import flatten_util
-import toml
 import std.runtime.seam
 
 def httpd_flatten_toml_path(path: var ptr, text: var ptr, len: var int) raises IO, Alloc -> int
@@ -12,8 +11,6 @@ def httpd_flatten_toml_path(path: var ptr, text: var ptr, len: var int) raises I
   ensures result <= 3
   decreases len
 =
-  if toml_parse(text, len) < 0:
-    return 3
   var base: ptr = flatten_path_stem(path)
   var idx: int = flatten_corpus_lookup(base)
   if idx < 0:
