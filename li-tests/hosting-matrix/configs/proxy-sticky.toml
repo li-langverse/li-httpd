@@ -1,0 +1,15 @@
+# Sticky sessions via li_route Set-Cookie (two upstream peers).
+[server]
+listen = "127.0.0.1:39243"
+document_root = "../static"
+
+[limits]
+rate_limit_rps = 10000
+rate_limit_burst = 20000
+
+[upstreams.pool]
+balance = "cookie"
+peers = ["http://127.0.0.1:39244", "http://127.0.0.1:39245"]
+
+[routes]
+"GET /*" = "proxy:pool"

@@ -6,8 +6,10 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 export LI_HTTPD_CONFIG_PIPELINE="${LI_HTTPD_CONFIG_PIPELINE:-li}"
-export LI_HTTPD_WORKERS="${LI_HTTPD_WORKERS:-0}"
+export LI_HTTPD_WORKERS="${LI_HTTPD_WORKERS:-1}"
 export LI_HTTPD_M2_HTTP2="${LI_HTTPD_M2_HTTP2:-0}"
+export LI_HTTPD_PROXY_SNAP="${LI_HTTPD_PROXY_SNAP:-0}"
+export LI_HTTPD_PROXY_C="${LI_HTTPD_PROXY_C:-1}"
 
 BIN="$ROOT/build/li-httpd"
 fail() { echo "hosting-matrix-smoke: FAIL $*" >&2; exit 1; }
@@ -29,6 +31,11 @@ if [[ ! -x "$BIN" ]]; then
   fi
 fi
 [[ -x "$BIN" ]] || fail "missing $BIN (build in WSL/Linux)"
+
+for p in 39229 39230 39231 39232 39233 39234 39235 39236 39237 39238 39239 39240 39241 39242 39243 39244 39245; do
+  fuser -k "${p}/tcp" >/dev/null 2>&1 || true
+done
+sleep 0.5
 
 HOSTING_PID=""
 HOSTING_CONF=""
@@ -115,6 +122,8 @@ echo "$css" | grep -q "font-family" || { kill_pid "$PID1"; fail "static argv css
 js="$(curl -fsS "http://127.0.0.1:${PORT_STATIC}/assets/app.js")"
 echo "$js" | grep -q "javascript executed" || { kill_pid "$PID1"; fail "static argv js"; }
 kill_pid "$PID1"
+pkill -9 li-httpd >/dev/null 2>&1 || true
+sleep 0.5
 ok "static HTML/CSS/JS (argv mode)"
 
 # --- 2) Static via TOML (flatten -> runtime.conf) ---
@@ -160,9 +169,128 @@ echo "$api_body" | grep -q "node upstream html" || {
   kill_pid "$PID_NODE"
   fail "proxy-node /api/* -> node (got: ${api_body:0:120})"
 }
+JAR="$(mktemp)"
+curl -sS --max-time 10 -c "$JAR" -b "$JAR" -X POST "http://127.0.0.1:39233/api/login" \
+  -H "content-type: application/json" \
+  -d '{"user":"agent","pass":"secret"}' | grep -q '"ok":true' || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "proxy login Set-Cookie"
+}
+code_me="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -b "$JAR" "http://127.0.0.1:39233/api/me")"
+[[ "$code_me" == "200" ]] || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "proxy /api/me with session cookie (code=$code_me)"
+}
+code_anon="$(curl -sS -o /dev/null -w "%{http_code}" "http://127.0.0.1:39233/api/me")"
+[[ "$code_anon" == "401" ]] || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "proxy /api/me without cookie should 401 (code=$code_anon)"
+}
+echo '{"hello":"li-httpd"}' | curl -sS --max-time 10 -b "$JAR" -X POST "http://127.0.0.1:39233/api/echo" \
+  -H "content-type: application/json" -d @- | grep -q 'hello' || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "proxy POST /api/echo JSON body"
+}
+
+# REST CRUD through proxy
+rest_create="$(curl -sS --max-time 10 -X POST "http://127.0.0.1:39233/api/rest/users" \
+  -H "content-type: application/json" -d '{"name":"Charlie","email":"c@example.com"}')"
+echo "$rest_create" | grep -q '"name":"Charlie"' || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "REST POST create user (got: ${rest_create:0:120})"
+}
+new_id="$(echo "$rest_create" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")"
+curl -sS --max-time 10 -X PUT "http://127.0.0.1:39233/api/rest/users/${new_id}" \
+  -H "content-type: application/json" -d '{"name":"Charles","email":"c@example.com"}' | grep -q '"name":"Charles"' || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "REST PUT update user"
+}
+curl -sS --max-time 10 -X PATCH "http://127.0.0.1:39233/api/rest/users/${new_id}" \
+  -H "content-type: application/json" -d '{"email":"charles@example.com"}' | grep -q 'charles@example.com' || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "REST PATCH partial update"
+}
+code_del="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -X DELETE "http://127.0.0.1:39233/api/rest/users/${new_id}")"
+[[ "$code_del" == "204" ]] || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "REST DELETE should 204 (code=$code_del)"
+}
+curl -sS --max-time 10 "http://127.0.0.1:39233/api/rest/users?filter=Alice" | grep -q '"name":"Alice"' || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "REST GET with query string"
+}
+
+# SOAP XML through proxy
+SOAP_BODY='<?xml version="1.0"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><test/></soap:Body></soap:Envelope>'
+soap_resp="$(curl -sS --max-time 10 -X POST "http://127.0.0.1:39233/api/soap" \
+  -H "content-type: text/xml" \
+  -H 'SOAPAction: "urn:test#Echo"' \
+  -d "$SOAP_BODY")"
+echo "$soap_resp" | grep -q 'EchoResponse' || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "SOAP POST through proxy (got: ${soap_resp:0:120})"
+}
+echo "$soap_resp" | grep -q 'urn:test#Echo' || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "SOAPAction passthrough in response"
+}
+
+# Header passthrough (Authorization, X-Custom, SOAPAction, Accept)
+hdr_body="$(curl -sS --max-time 10 "http://127.0.0.1:39233/api/headers" \
+  -H "authorization: Bearer smoke-token" \
+  -H "x-custom: matrix-test" \
+  -H 'SOAPAction: "urn:headers"' \
+  -H "accept: application/json")"
+echo "$hdr_body" | grep -q 'Bearer smoke-token' || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "Authorization header passthrough"
+}
+echo "$hdr_body" | grep -q 'matrix-test' || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "X-Custom header passthrough"
+}
+
+# CORS preflight for PUT
+code_opts="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -X OPTIONS "http://127.0.0.1:39233/api/rest/users" \
+  -H "origin: http://example.com" \
+  -H "access-control-request-method: PUT")"
+[[ "$code_opts" == "204" ]] || {
+  kill_served
+  kill_pid "$PID_NODE"
+  rm -f "$JAR"
+  fail "CORS OPTIONS preflight for PUT (code=$code_opts)"
+}
+
+rm -f "$JAR"
 kill_served
 kill_pid "$PID_NODE"
-ok "reverse proxy -> Node"
+ok "reverse proxy -> Node (REST, SOAP, JSON, headers, CORS)"
 
 # --- 5) Bun backend + reverse proxy ---
 if ensure_bun; then
@@ -233,9 +361,67 @@ else
   fail "next dev upstream (39237) did not start"
 fi
 
-# --- 7) argv proxy mode (all paths -> backend) ---
-PORT_BE=39239
-PORT_FRONT=39240
+# --- 7) Full app front (static + API on one port) ---
+export BACKEND_PORT=39242
+node "$ROOT/li-tests/hosting-matrix/backends/node-server.mjs" &
+PID_APP=$!
+if ! wait_http "http://127.0.0.1:39242/health"; then
+  kill_pid "$PID_APP"
+  fail "app backend health"
+fi
+serve_from_toml "$ROOT/li-tests/hosting-matrix/configs/proxy-app.toml"
+if ! wait_http "http://127.0.0.1:39241/login.html"; then
+  kill_served
+  kill_pid "$PID_APP"
+  fail "proxy-app static login.html"
+fi
+curl -fsS "http://127.0.0.1:39241/login.html" | grep -q "Session demo" || {
+  kill_served
+  kill_pid "$PID_APP"
+  fail "proxy-app login.html body"
+}
+kill_served
+kill_pid "$PID_APP"
+ok "proxy-app (static + API routes)"
+
+# --- 8) Sticky cookie LB (two peers) ---
+export BACKEND_RUNTIME=peer-a BACKEND_PORT=39244
+node "$ROOT/li-tests/hosting-matrix/backends/node-server.mjs" &
+PID_PA=$!
+export BACKEND_RUNTIME=peer-b BACKEND_PORT=39245
+node "$ROOT/li-tests/hosting-matrix/backends/node-server.mjs" &
+PID_PB=$!
+sleep 0.5
+serve_from_toml "$ROOT/li-tests/hosting-matrix/configs/proxy-sticky.toml"
+STICKY_JAR="$(mktemp)"
+peer_body=""
+for _ in 1 2 3 4 5; do
+  peer_body="$(curl -sS -c "$STICKY_JAR" -b "$STICKY_JAR" "http://127.0.0.1:39243/")"
+  sleep 0.05
+done
+echo "$peer_body" | grep -q "peer=" || {
+  kill_served
+  kill_pid "$PID_PA" "$PID_PB"
+  rm -f "$STICKY_JAR"
+  fail "sticky cookie body (got: ${peer_body:0:80})"
+}
+for _ in 1 2 3; do
+  b2="$(curl -sS -b "$STICKY_JAR" "http://127.0.0.1:39243/")"
+  [[ "$b2" == "$peer_body" ]] || {
+    kill_served
+    kill_pid "$PID_PA" "$PID_PB"
+    rm -f "$STICKY_JAR"
+    fail "sticky cookie affinity changed peer"
+  }
+done
+rm -f "$STICKY_JAR"
+kill_served
+kill_pid "$PID_PA" "$PID_PB"
+ok "sticky sessions (li_route cookie LB)"
+
+# --- 9) argv proxy (optional; static+backend split) ---
+PORT_BE=39246
+PORT_FRONT=39247
 export BACKEND_PORT="$PORT_BE"
 node "$ROOT/li-tests/hosting-matrix/backends/node-server.mjs" &
 PID_NB=$!

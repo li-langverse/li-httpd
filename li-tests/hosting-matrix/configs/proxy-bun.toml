@@ -11,5 +11,10 @@ peers = ["http://127.0.0.1:39232"]
 
 [routes]
 "GET /api/*" = "proxy:bun"
+"POST /api/*" = "proxy:bun"
+"PUT /api/*" = "proxy:bun"
+"PATCH /api/*" = "proxy:bun"
+"DELETE /api/*" = "proxy:bun"
+"OPTIONS /api/*" = "proxy:bun"
 "GET /index.html" = "static"
 "GET /assets/**" = "static:assets"
