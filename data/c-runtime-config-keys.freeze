@@ -13,6 +13,7 @@ leak_censor_enabled
 leak_censor_on_detect
 leak_censor_pattern
 listen_port
+listen_port_http
 m2_cb_error_threshold
 m2_cb_half_open_probes
 m2_cb_open_duration_sec

@@ -127,36 +127,10 @@ if (( tested_good == 0 )); then
   fail "no full server configs found to parity-check under $GOOD_DIR"
 fi
 
-# Legacy Python flattener is permissive on some M2/M3 policy TOMLs (flatten succeeds
-# but configs are still invalid). Li desugar/validate must reject them.
-PY_REJECT_PERMISSIVE=(
-  m2_http2_no_tls
-  m2_queue_depth_excess
-  m2_webhook_private_ip
-  m3_l4_no_upstream
-  m3_l4_private_upstream
-  m3_token_budget_bad_header
-  m3_token_cap_excess
-)
-py_reject_permissive() {
-  local base="$1"
-  local x
-  for x in "${PY_REJECT_PERMISSIVE[@]}"; do
-    [[ "$x" == "$base" ]] && return 0
-  done
-  return 1
-}
-
 echo "config-parity-check: python flatten must fail on reject corpus"
 for f in "${REJECT_FILES[@]}"; do
   base="$(basename "$f" .toml)"
   out="$OUT_DIR/reject/$base.runtime.conf"
-  if py_reject_permissive "$base"; then
-    if ! run_py_flatten "$f" "$out" >/dev/null 2>&1; then
-      fail "python flatten unexpectedly failed (py-permissive reject): $f"
-    fi
-    continue
-  fi
   if run_py_flatten "$f" "$out" >/dev/null 2>&1; then
     fail "python flatten unexpectedly succeeded (reject): $f"
   fi
@@ -187,10 +161,6 @@ done
 echo "config-parity-check: Li flatten must fail on reject corpus"
 for f in "${REJECT_FILES[@]}"; do
   base="$(basename "$f" .toml)"
-  if py_reject_permissive "$base"; then
-    echo "config-parity-check: skip li reject (py-permissive; Li policy gate pending): $f"
-    continue
-  fi
   li_out="$OUT_DIR/reject/$base.li.runtime.conf"
   if run_li_flatten "$f" "$li_out" >/dev/null 2>&1; then
     fail "li flatten unexpectedly succeeded (reject): $f"
