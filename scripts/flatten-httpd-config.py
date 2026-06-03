@@ -64,14 +64,12 @@ def route_pool_id(action: str) -> str:
 def emit_route_line(r, vhost: str) -> str:
     kind = r.path_kind if r.path_kind in ("exact", "prefix", "prefix_strip") else "prefix"
     action = "proxy" if r.action.startswith("proxy:") else "static"
-    pool = route_pool_id(r.action)
-    v = vhost or ""
     rrps = getattr(r, "rate_limit_rps", 0)
     rburst = getattr(r, "rate_limit_burst", 0)
     if rrps > 0:
         burst = rburst if rburst > 0 else rrps
-        return f"route={r.method}|{r.path}|{kind}|{action}|{pool}|{v}|{rrps}|{burst}"
-    return f"route={r.method}|{r.path}|{kind}|{action}|{pool}|{v}"
+        return f"route={r.method}|{r.path}|{kind}|{action}|{rrps}|{burst}"
+    return f"route={r.method}|{r.path}|{kind}|{action}"
 
 
 def flatten_site_routes(site: HttpdConfig, lines: list[str]) -> bool:
@@ -84,11 +82,11 @@ def flatten_site_routes(site: HttpdConfig, lines: list[str]) -> bool:
 
 
 def flatten_upstreams(upstreams: dict[str, list[str]], lines: list[str]) -> None:
-    for pool_id, peers in upstreams.items():
-        lines.append(f"upstream_pool={pool_id}")
+    # C loader expects upstream_peer=<port> (see lic/scripts/flatten-httpd-config.py).
+    for _pool_id, peers in upstreams.items():
         for peer in peers:
-            host, port = peer_host_port(peer)
-            lines.append(f"upstream_peer={pool_id}|{host}|{port}")
+            _host, port = peer_host_port(peer)
+            lines.append(f"upstream_peer={port}")
 
 
 def flatten(cfg_path: Path) -> list[str]:

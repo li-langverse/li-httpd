@@ -1,0 +1,16 @@
+# Reverse proxy to Node upstream; static assets from document_root.
+[server]
+listen = "127.0.0.1:39233"
+document_root = "../static"
+
+[limits]
+rate_limit_rps = 10000
+rate_limit_burst = 20000
+
+[upstreams.node]
+peers = ["http://127.0.0.1:39231"]
+
+[routes]
+"GET /api/*" = "proxy:node"
+"GET /index.html" = "static"
+"GET /assets/**" = "static:assets"
