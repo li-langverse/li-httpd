@@ -1,0 +1,23 @@
+# TLS 1.2 + DHE for legacy/internal clients (OpenSSL terminate path).
+# Generate params: lic/scripts/gen-dhparam.sh ./certs-dhe/dhparam.pem
+[server]
+listen = "127.0.0.1:18446"
+document_root = "./public"
+
+[server.tls]
+mode = "self_signed"
+cert_dir = "./certs-dhe"
+min_protocol = "1.2"
+terminate = true
+dhparam_file = "./certs-dhe/dhparam.pem"
+
+[server.tls.self_signed]
+dev = true
+valid_days = 30
+
+[limits]
+max_body = "1m"
+max_header = "16k"
+
+[routes]
+"GET /health" = "static:healthcheck"

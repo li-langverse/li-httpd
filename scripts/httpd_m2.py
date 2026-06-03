@@ -87,7 +87,11 @@ def validate_m2_tls_terminate(data: dict[str, Any], path: Any) -> None:
         if profile is None:
             raise ConfigError("server.tls is required when M2 terminate or HTTP/2 is enabled")
         if profile.min_protocol != "1.3":
-            raise ConfigError("M2 TLS terminate requires server.tls.min_protocol = \"1.3\"")
+            if profile.min_protocol != "1.2" or not profile.dhparam_file:
+                raise ConfigError(
+                    'M2 TLS terminate requires server.tls.min_protocol = "1.3" '
+                    '(or "1.2" with dhparam_file for DHE)'
+                )
         if terminate and is_public_listen(listen) and profile.mode == "self_signed":
             ss = tls_nested.get("self_signed") or {}
             dev = isinstance(ss, dict) and str(ss.get("dev", "")).lower() in ("1", "true", "yes")
@@ -265,7 +269,10 @@ def m2_flatten_lines(data: dict[str, Any], cfg_path: Any) -> list[str]:
     tls_nested = _server_tls_block(data)
     if str(tls_nested.get("terminate", "")).lower() in ("1", "true", "yes"):
         lines.append("m2_tls_terminate=1")
-        lines.append("m2_tls_min_protocol=1.3")
+        min_p = str(tls_nested.get("min_protocol") or "1.3").strip()
+        if min_p not in ("1.2", "1.3"):
+            min_p = "1.3"
+        lines.append(f"m2_tls_min_protocol={min_p}")
     server = data.get("server") or {}
     h2 = server.get("http2") if isinstance(server, dict) else None
     if isinstance(h2, dict) and str(h2.get("enabled", "")).lower() in ("1", "true", "yes"):

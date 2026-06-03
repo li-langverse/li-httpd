@@ -34,6 +34,7 @@ class TlsProfile:
     mode: str
     min_protocol: str
     cert_dir: Path
+    dhparam_file: Path | None = None
     manual_cert: Path | None = None
     manual_key: Path | None = None
     self_signed_dev: bool = False
@@ -147,10 +148,17 @@ def normalize_tls_block(data: dict[str, Any]) -> TlsProfile:
     cert_dir_raw = nested.get("cert_dir") or server.get("cert_dir") or "./certs"
     cert_dir = Path(str(cert_dir_raw)).expanduser()
 
+    dhe = nested.get("dhe") if isinstance(nested.get("dhe"), dict) else {}
+    dhparam_raw = nested.get("dhparam_file") or dhe.get("dhparam_file") or dhe.get("file")
+    dhparam_file: Path | None = None
+    if dhparam_raw is not None and str(dhparam_raw).strip():
+        dhparam_file = Path(str(dhparam_raw)).expanduser()
+
     profile = TlsProfile(
         mode=mode,
         min_protocol=min_proto,
         cert_dir=cert_dir,
+        dhparam_file=dhparam_file,
         renew_before_days=parse_renew_before(nested.get("renew_before")),
     )
 
@@ -233,6 +241,16 @@ def validate_tls_config(data: dict[str, Any], cfg_path: Path | None = None) -> T
             raise ConfigError(
                 "self_signed on public bind requires server.tls.self_signed.dev = true"
             )
+
+    if profile.dhparam_file:
+        if profile.min_protocol != "1.2":
+            raise ConfigError(
+                'server.tls.dhparam_file (DHE) requires min_protocol = "1.2" — DHE cipher suites are TLS 1.2 only'
+            )
+        resolved = profile.dhparam_file
+        if cfg_path and not resolved.is_absolute():
+            resolved = (cfg_path.parent / resolved).resolve()
+        profile.dhparam_file = resolved
 
     if profile.mode == "lets_encrypt":
         if not profile.le_email or not EMAIL_RE.match(profile.le_email):
@@ -452,6 +470,8 @@ def tls_flatten_lines(data: dict[str, Any], cfg_path: Path) -> list[str]:
         lines.append(f"tls_manual_cert={profile.manual_cert}")
     if profile.manual_key:
         lines.append(f"tls_manual_key={profile.manual_key}")
+    if profile.dhparam_file:
+        lines.append(f"tls_dhparam_file={profile.dhparam_file}")
     return lines
 
 
