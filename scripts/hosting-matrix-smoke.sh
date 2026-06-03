@@ -32,20 +32,72 @@ if [[ ! -x "$BIN" ]]; then
 fi
 [[ -x "$BIN" ]] || fail "missing $BIN (build in WSL/Linux)"
 
-for p in 39229 39230 39231 39232 39233 39234 39235 39236 39237 39238 39239 39240 39241 39242 39243 39244 39245; do
-  fuser -k "${p}/tcp" >/dev/null 2>&1 || true
-done
-sleep 0.5
+MATRIX_PORTS=(39229 39230 39231 39232 39233 39234 39235 39236 39237 39238 39239 39240 39241 39242 39243 39244 39245 39246 39247)
+
+free_matrix_ports() {
+  local p timeout_sec="${1:-10}" start now elapsed busy
+  start=$(date +%s)
+  pkill -9 li-httpd >/dev/null 2>&1 || true
+  while true; do
+    for p in "${MATRIX_PORTS[@]}"; do
+      fuser -k "${p}/tcp" >/dev/null 2>&1 || true
+      if command -v lsof >/dev/null 2>&1; then
+        local pids
+        pids="$(lsof -ti ":${p}" 2>/dev/null | sort -u | tr '\n' ' ' || true)"
+        if [[ -n "${pids// }" ]]; then
+          # shellcheck disable=SC2086
+          kill -9 ${pids} >/dev/null 2>&1 || true
+        fi
+      fi
+    done
+    busy=0
+    for p in "${MATRIX_PORTS[@]}"; do
+      if command -v lsof >/dev/null 2>&1; then
+        lsof -ti ":${p}" >/dev/null 2>&1 && busy=1
+      elif fuser "${p}/tcp" >/dev/null 2>&1; then
+        busy=1
+      fi
+    done
+    (( busy == 0 )) && break
+    now=$(date +%s)
+    elapsed=$((now - start))
+    if (( elapsed >= timeout_sec )); then
+      echo "hosting-matrix-smoke: WARN matrix ports still busy after ${timeout_sec}s:" >&2
+      for p in "${MATRIX_PORTS[@]}"; do
+        fuser -v "${p}/tcp" 2>&1 | head -3 >&2 || true
+      done
+      break
+    fi
+    sleep 0.25
+  done
+  sleep 0.3
+}
+
+free_matrix_ports 12
 
 HOSTING_PID=""
 HOSTING_CONF=""
 
 serve_from_toml() {
   local cfg="$1"
+  if [[ -n "${HOSTING_PID:-}" ]]; then
+    kill_pid "$HOSTING_PID"
+    rm -f "${HOSTING_CONF:-}"
+    HOSTING_PID=""
+    HOSTING_CONF=""
+  fi
+  pkill -9 li-httpd >/dev/null 2>&1 || true
+  sleep 0.2
   HOSTING_CONF="$(mktemp --suffix=.conf)"
   if ! python3 "$ROOT/scripts/flatten-httpd-config.py" "$cfg" -o "$HOSTING_CONF"; then
     rm -f "$HOSTING_CONF"
     fail "flatten $cfg"
+  fi
+  local listen_port=""
+  listen_port="$(grep '^listen_port=' "$HOSTING_CONF" | head -1 | cut -d= -f2- || true)"
+  if [[ -n "$listen_port" ]]; then
+    fuser -k "${listen_port}/tcp" >/dev/null 2>&1 || true
+    sleep 0.1
   fi
   "$BIN" "$HOSTING_CONF" &
   HOSTING_PID=$!
@@ -77,6 +129,8 @@ stop_served() {
   rm -f "${HOSTING_CONF:-}"
   HOSTING_PID=""
   HOSTING_CONF=""
+  pkill -9 li-httpd >/dev/null 2>&1 || true
+  sleep 0.2
 }
 
 wait_http() {
@@ -109,6 +163,7 @@ kill_served() {
 # --- 1) Static via argv (HTML/CSS/JS) ---
 STATIC="$ROOT/li-tests/hosting-matrix/static"
 PORT_STATIC=39229
+free_matrix_ports 8
 "$BIN" "$PORT_STATIC" "$STATIC" &
 PID1=$!
 if ! wait_http "http://127.0.0.1:${PORT_STATIC}/index.html"; then
@@ -122,8 +177,7 @@ echo "$css" | grep -q "font-family" || { kill_pid "$PID1"; fail "static argv css
 js="$(curl -fsS "http://127.0.0.1:${PORT_STATIC}/assets/app.js")"
 echo "$js" | grep -q "javascript executed" || { kill_pid "$PID1"; fail "static argv js"; }
 kill_pid "$PID1"
-pkill -9 li-httpd >/dev/null 2>&1 || true
-sleep 0.5
+free_matrix_ports 6
 ok "static HTML/CSS/JS (argv mode)"
 
 # --- 2) Static via TOML (flatten -> runtime.conf) ---
@@ -150,6 +204,7 @@ ok "Next.js static export (_next/static)"
 
 # --- 4) Node backend + reverse proxy ---
 export BACKEND_PORT=39231
+free_matrix_ports 8
 node "$ROOT/li-tests/hosting-matrix/backends/node-server.mjs" &
 PID_NODE=$!
 if ! wait_http "http://127.0.0.1:39231/health"; then
@@ -295,6 +350,7 @@ ok "reverse proxy -> Node (REST, SOAP, JSON, headers, CORS)"
 # --- 5) Bun backend + reverse proxy ---
 if ensure_bun; then
   export BACKEND_PORT=39232
+  free_matrix_ports 8
   bun "$ROOT/li-tests/hosting-matrix/backends/bun-server.mjs" &
   PID_BUN=$!
   if ! wait_http "http://127.0.0.1:39232/health"; then
@@ -323,6 +379,7 @@ fi
 # Default: CL stand-in (next dev streams chunked; li-httpd relay is CL-oriented today).
 # Set HOSTING_MATRIX_REAL_NEXT=1 to exercise full `next dev` (may SKIP on proxy body).
 export BACKEND_PORT=39237
+free_matrix_ports 8
 if [[ "${HOSTING_MATRIX_REAL_NEXT:-0}" == "1" && -f "$ROOT/li-tests/hosting-matrix/next-dev/package.json" ]]; then
   NEXT_DIR="$ROOT/li-tests/hosting-matrix/next-dev"
   [[ -d "$NEXT_DIR/node_modules" ]] || ( cd "$NEXT_DIR" && npm install --no-audit --no-fund )
@@ -363,6 +420,7 @@ fi
 
 # --- 7) Full app front (static + API on one port) ---
 export BACKEND_PORT=39242
+free_matrix_ports 8
 node "$ROOT/li-tests/hosting-matrix/backends/node-server.mjs" &
 PID_APP=$!
 if ! wait_http "http://127.0.0.1:39242/health"; then
@@ -385,14 +443,27 @@ kill_pid "$PID_APP"
 ok "proxy-app (static + API routes)"
 
 # --- 8) Sticky cookie LB (two peers) ---
+free_matrix_ports 8
 export BACKEND_RUNTIME=peer-a BACKEND_PORT=39244
 node "$ROOT/li-tests/hosting-matrix/backends/node-server.mjs" &
 PID_PA=$!
 export BACKEND_RUNTIME=peer-b BACKEND_PORT=39245
 node "$ROOT/li-tests/hosting-matrix/backends/node-server.mjs" &
 PID_PB=$!
-sleep 0.5
+if ! wait_http "http://127.0.0.1:39244/health"; then
+  kill_pid "$PID_PA" "$PID_PB"
+  fail "sticky peer-a health"
+fi
+if ! wait_http "http://127.0.0.1:39245/health"; then
+  kill_pid "$PID_PA" "$PID_PB"
+  fail "sticky peer-b health"
+fi
 serve_from_toml "$ROOT/li-tests/hosting-matrix/configs/proxy-sticky.toml"
+if ! wait_http "http://127.0.0.1:39243/"; then
+  kill_served
+  kill_pid "$PID_PA" "$PID_PB"
+  fail "sticky LB front (39243)"
+fi
 STICKY_JAR="$(mktemp)"
 peer_body=""
 for _ in 1 2 3 4 5; do
@@ -423,6 +494,7 @@ ok "sticky sessions (li_route cookie LB)"
 PORT_BE=39246
 PORT_FRONT=39247
 export BACKEND_PORT="$PORT_BE"
+free_matrix_ports 8
 node "$ROOT/li-tests/hosting-matrix/backends/node-server.mjs" &
 PID_NB=$!
 if ! wait_http "http://127.0.0.1:${PORT_BE}/"; then

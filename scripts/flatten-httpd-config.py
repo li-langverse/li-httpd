@@ -81,12 +81,24 @@ def flatten_site_routes(site: HttpdConfig, lines: list[str]) -> bool:
     return proxy_any
 
 
-def flatten_upstreams(upstreams: dict[str, list[str]], lines: list[str]) -> None:
-    # C loader expects upstream_peer=<port> (see lic/scripts/flatten-httpd-config.py).
-    for _pool_id, peers in upstreams.items():
-        for peer in peers:
-            _host, port = peer_host_port(peer)
+def flatten_upstream_pools(data: dict, lines: list[str]) -> None:
+    """Emit upstream_peer and optional upstream_balance (lic C loader)."""
+    pools: list[tuple[str, dict]] = []
+    nested = data.get("upstreams") or {}
+    if isinstance(nested, dict):
+        for pool_id, val in nested.items():
+            if isinstance(val, dict):
+                pools.append((str(pool_id), val))
+    for key, val in data.items():
+        if key.startswith("upstreams.") and isinstance(val, dict):
+            pools.append((key.split(".", 1)[1], val))
+    for _pool_id, spec in pools:
+        for peer in spec.get("peers") or []:
+            _host, port = peer_host_port(str(peer))
             lines.append(f"upstream_peer={port}")
+        bal = spec.get("balance")
+        if bal is not None and str(bal).strip():
+            lines.append(f"upstream_balance={str(bal).strip()}")
 
 
 def flatten(cfg_path: Path) -> list[str]:
@@ -153,7 +165,12 @@ def flatten(cfg_path: Path) -> list[str]:
                 proxy_any = True
             lines.append(emit_route_line(r, vhost))
 
-    flatten_upstreams(upstreams, lines)
+    flatten_upstream_pools(data, lines)
+    if not any(l.startswith("upstream_peer=") for l in lines):
+        for _pool_id, peers in upstreams.items():
+            for peer in peers:
+                _host, port = peer_host_port(peer)
+                lines.append(f"upstream_peer={port}")
 
     if proxy_any and not any(l.startswith("upstream_peer=") for l in lines):
         lines.append("proxy_all=1")
