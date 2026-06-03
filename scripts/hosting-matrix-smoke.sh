@@ -34,49 +34,54 @@ fi
 
 MATRIX_PORTS=(39229 39230 39231 39232 39233 39234 39235 39236 39237 39238 39239 39240 39241 39242 39243 39244 39245 39246 39247)
 
-free_matrix_ports() {
-  local p timeout_sec="${1:-10}" start now elapsed busy
+port_busy() {
+  local p="$1"
+  if command -v lsof >/dev/null 2>&1; then
+    lsof -ti ":${p}" >/dev/null 2>&1
+    return $?
+  fi
+  fuser "${p}/tcp" >/dev/null 2>&1
+}
+
+free_port() {
+  local p="$1" timeout_sec="${2:-8}" start now elapsed
   start=$(date +%s)
-  pkill -9 li-httpd >/dev/null 2>&1 || true
-  while true; do
-    for p in "${MATRIX_PORTS[@]}"; do
-      fuser -k "${p}/tcp" >/dev/null 2>&1 || true
-      if command -v lsof >/dev/null 2>&1; then
-        local pids
-        pids="$(lsof -ti ":${p}" 2>/dev/null | sort -u | tr '\n' ' ' || true)"
-        if [[ -n "${pids// }" ]]; then
-          # shellcheck disable=SC2086
-          kill -9 ${pids} >/dev/null 2>&1 || true
-        fi
+  while port_busy "$p"; do
+    fuser -k "${p}/tcp" >/dev/null 2>&1 || true
+    if command -v lsof >/dev/null 2>&1; then
+      local pids
+      pids="$(lsof -ti ":${p}" 2>/dev/null | sort -u | tr '\n' ' ' || true)"
+      if [[ -n "${pids// }" ]]; then
+        # shellcheck disable=SC2086
+        kill -9 ${pids} >/dev/null 2>&1 || true
       fi
-    done
-    busy=0
-    for p in "${MATRIX_PORTS[@]}"; do
-      if command -v lsof >/dev/null 2>&1; then
-        lsof -ti ":${p}" >/dev/null 2>&1 && busy=1
-      elif fuser "${p}/tcp" >/dev/null 2>&1; then
-        busy=1
-      fi
-    done
-    (( busy == 0 )) && break
+    fi
+    port_busy "$p" || break
     now=$(date +%s)
     elapsed=$((now - start))
     if (( elapsed >= timeout_sec )); then
-      echo "hosting-matrix-smoke: WARN matrix ports still busy after ${timeout_sec}s:" >&2
-      for p in "${MATRIX_PORTS[@]}"; do
-        fuser -v "${p}/tcp" 2>&1 | head -3 >&2 || true
-      done
+      echo "hosting-matrix-smoke: WARN port ${p} still busy after ${timeout_sec}s:" >&2
+      fuser -v "${p}/tcp" 2>&1 | head -3 >&2 || true
       break
     fi
     sleep 0.25
   done
-  sleep 0.3
+  sleep 0.15
+}
+
+free_matrix_ports() {
+  local timeout_sec="${1:-10}"
+  pkill -9 li-httpd >/dev/null 2>&1 || true
+  for p in "${MATRIX_PORTS[@]}"; do
+    free_port "$p" "$timeout_sec"
+  done
 }
 
 free_matrix_ports 12
 
 HOSTING_PID=""
 HOSTING_CONF=""
+HOSTING_LISTEN_PORT=""
 
 serve_from_toml() {
   local cfg="$1"
@@ -85,19 +90,21 @@ serve_from_toml() {
     rm -f "${HOSTING_CONF:-}"
     HOSTING_PID=""
     HOSTING_CONF=""
+    if [[ -n "${HOSTING_LISTEN_PORT:-}" ]]; then
+      free_port "$HOSTING_LISTEN_PORT" 8
+      HOSTING_LISTEN_PORT=""
+    fi
   fi
   pkill -9 li-httpd >/dev/null 2>&1 || true
-  sleep 0.2
+  sleep 0.15
   HOSTING_CONF="$(mktemp --suffix=.conf)"
   if ! python3 "$ROOT/scripts/flatten-httpd-config.py" "$cfg" -o "$HOSTING_CONF"; then
     rm -f "$HOSTING_CONF"
     fail "flatten $cfg"
   fi
-  local listen_port=""
-  listen_port="$(grep '^listen_port=' "$HOSTING_CONF" | head -1 | cut -d= -f2- || true)"
-  if [[ -n "$listen_port" ]]; then
-    fuser -k "${listen_port}/tcp" >/dev/null 2>&1 || true
-    sleep 0.1
+  HOSTING_LISTEN_PORT="$(grep '^listen_port=' "$HOSTING_CONF" | head -1 | cut -d= -f2- || true)"
+  if [[ -n "$HOSTING_LISTEN_PORT" ]]; then
+    free_port "$HOSTING_LISTEN_PORT" 8
   fi
   "$BIN" "$HOSTING_CONF" &
   HOSTING_PID=$!
@@ -130,7 +137,10 @@ stop_served() {
   HOSTING_PID=""
   HOSTING_CONF=""
   pkill -9 li-httpd >/dev/null 2>&1 || true
-  sleep 0.2
+  if [[ -n "${HOSTING_LISTEN_PORT:-}" ]]; then
+    free_port "$HOSTING_LISTEN_PORT" 6
+    HOSTING_LISTEN_PORT=""
+  fi
 }
 
 wait_http() {
