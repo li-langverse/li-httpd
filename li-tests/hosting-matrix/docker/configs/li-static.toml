@@ -1,0 +1,7 @@
+[server]
+listen = "127.0.0.1:39346"
+document_root = "/var/www"
+
+[limits]
+rate_limit_rps = 10000
+rate_limit_burst = 20000

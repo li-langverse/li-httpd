@@ -1,0 +1,23 @@
+# Multi-replica upstream pools (loopback ports — li-httpd peers are 127.0.0.1:PORT only).
+[server]
+listen = "127.0.0.1:39300"
+document_root = "/opt/li-httpd/static"
+
+[limits]
+rate_limit_rps = 10000
+rate_limit_burst = 20000
+
+[upstreams.node_pool]
+balance = "cookie"
+peers = ["http://127.0.0.1:39341", "http://127.0.0.1:39342", "http://127.0.0.1:39343"]
+
+[upstreams.bun_pool]
+peers = ["http://127.0.0.1:39344", "http://127.0.0.1:39345"]
+
+[upstreams.li_static]
+peers = ["http://127.0.0.1:39346"]
+
+[routes]
+"GET /node/**" = "proxy:node_pool"
+"GET /bun/**" = "proxy:bun_pool"
+"GET /li/**" = "proxy:li_static"

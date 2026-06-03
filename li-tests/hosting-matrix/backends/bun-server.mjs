@@ -1,6 +1,7 @@
 import { dispatchApp } from "./app-handler.mjs";
 
 const port = Number(process.env.BACKEND_PORT || "39232");
+const host = process.env.BACKEND_HOST || "127.0.0.1";
 const runtime = process.env.BACKEND_RUNTIME || "bun";
 
 function toResponse(out) {
@@ -16,7 +17,7 @@ function toResponse(out) {
 }
 
 Bun.serve({
-  hostname: "127.0.0.1",
+  hostname: host,
   port,
   async fetch(req) {
     const url = new URL(req.url);

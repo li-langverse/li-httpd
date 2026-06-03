@@ -3,6 +3,7 @@ import { dispatchApp } from "./app-handler.mjs";
 import { readBody, replyCl } from "./http-common.mjs";
 
 const port = Number(process.env.BACKEND_PORT || "39231");
+const host = process.env.BACKEND_HOST || "127.0.0.1";
 const runtime = process.env.BACKEND_RUNTIME || "node";
 
 const server = http.createServer(async (req, res) => {
@@ -27,6 +28,6 @@ const server = http.createServer(async (req, res) => {
   replyCl(res, out.status, out.headers, out.body);
 });
 
-server.listen(port, "127.0.0.1", () => {
-  console.log(`${runtime} listening on ${port}`);
+server.listen(port, host, () => {
+  console.log(`${runtime} listening on ${host}:${port}`);
 });
