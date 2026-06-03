@@ -82,6 +82,33 @@ code_opts="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -X OPTIONS "$
   -H "access-control-request-method: PUT")"
 [[ "$code_opts" == "204" ]] || fail "CORS OPTIONS (code=$code_opts)"
 
+code_put="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -X PUT "$BASE/api/echo" \
+  -H "content-type: application/json" -d '{"method":"PUT","probe":true}')"
+[[ "$code_put" == "200" ]] || fail "PUT /api/echo (code=$code_put)"
+put_echo="$(curl -sS --max-time 10 -X PUT "$BASE/api/echo" \
+  -H "content-type: application/json" -d '{"method":"PUT","probe":true}')"
+echo "$put_echo" | grep -q '"echo":' || fail "PUT /api/echo missing echo (got: ${put_echo:0:120})"
+echo "$put_echo" | grep -q 'PUT' || fail "PUT /api/echo body"
+
+code_patch="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -X PATCH "$BASE/api/echo" \
+  -H "content-type: application/json" -d '{"method":"PATCH","probe":true}')"
+[[ "$code_patch" == "200" ]] || fail "PATCH /api/echo (code=$code_patch)"
+patch_echo="$(curl -sS --max-time 10 -X PATCH "$BASE/api/echo" \
+  -H "content-type: application/json" -d '{"method":"PATCH","probe":true}')"
+echo "$patch_echo" | grep -q '"echo":' || fail "PATCH /api/echo missing echo (got: ${patch_echo:0:120})"
+
+JAR="$(mktemp)"
+curl -sS --max-time 10 -c "$JAR" -b "$JAR" -X POST "$BASE/api/login" \
+  -H "content-type: application/json" \
+  -d '{"user":"agent","pass":"secret"}' | grep -q '"ok":true' || fail "login before logout"
+code_me_pre="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -b "$JAR" "$BASE/api/me")"
+[[ "$code_me_pre" == "200" ]] || fail "/api/me before logout (code=$code_me_pre)"
+code_logout="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -b "$JAR" -c "$JAR" -X POST "$BASE/api/logout")"
+[[ "$code_logout" == "200" ]] || fail "POST /api/logout (code=$code_logout)"
+code_me_post="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -b "$JAR" "$BASE/api/me")"
+[[ "$code_me_post" == "401" ]] || fail "/api/me after logout (code=$code_me_post)"
+rm -f "$JAR"
+
 kill_pid "$PID_FE" "$PID_NODE"
 rm -f "$CONF"
-ok "REST, SOAP, JSON, headers, CORS through proxy"
+ok "REST, SOAP, JSON, echo PUT/PATCH, logout, headers, CORS through proxy"
