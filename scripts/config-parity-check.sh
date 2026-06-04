@@ -130,6 +130,7 @@ fi
 # Legacy Python flattener is permissive on some M2/M3 policy TOMLs (flatten succeeds
 # but configs are still invalid). Li desugar/validate must reject them.
 PY_REJECT_PERMISSIVE=(
+  lb_bad_balance
   m2_http2_no_tls
   m2_queue_depth_excess
   m2_webhook_private_ip
