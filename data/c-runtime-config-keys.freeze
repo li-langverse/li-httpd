@@ -26,7 +26,6 @@ m2_tls_terminate
 m2_webhook_allow
 m3_token_budget_enabled
 m3_token_budget_header
-m3_token_budget_heade
 m3_token_budget_max
 m3_token_budget_reject_over_cap
 model_match
@@ -37,12 +36,10 @@ route
 route_require
 stream_idle_timeout_sec
 stream_max_duration_sec
-tls_cert_di
 tls_cert_dir
 tls_dhparam_file
 tls_enabled
 tls_min_protocol
 upstream_balance
-upstream_pee
 upstream_peer
 workers
