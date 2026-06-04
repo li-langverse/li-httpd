@@ -128,3 +128,51 @@ jobs:
           set -eo pipefail
           chmod +x scripts/hosting-matrix-docker-smoke.sh
           bash scripts/hosting-matrix-docker-smoke.sh
+
+  hosting-matrix-features:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/checkout@v4
+        with:
+          repository: li-langverse/lic
+          path: lic
+          ref: 337573217951eee086f529f1f2452b680a28445c
+
+      - name: Build lic + li-httpd (lic-ci container)
+        run: |
+          set -eo pipefail
+          docker run --rm \
+            -v "${GITHUB_WORKSPACE}:/ws" \
+            -w /ws/lic \
+            -e LLVM_DIR=/usr/lib/llvm-22/lib/cmake/llvm \
+            -e CC=clang-22 \
+            -e CXX=clang++-22 \
+            -e LI_REPO_ROOT=/ws/lic \
+            -e LI_LINK_RUNTIME_FULL=1 \
+            ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22 \
+            bash -lc 'chmod +x scripts/build.sh scripts/build-li-httpd.sh; ./scripts/build.sh; ./scripts/build-li-httpd.sh; test -x build/li-httpd'
+          mkdir -p build
+          cp -f lic/build/li-httpd build/li-httpd
+          chmod +x build/li-httpd
+
+      - name: Install Node and matrix backend deps
+        run: |
+          set -eo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq curl python3 ca-certificates nodejs
+          if [[ -f li-tests/hosting-matrix/backends/package.json ]]; then
+            ( cd li-tests/hosting-matrix/backends && npm install --no-audit --no-fund )
+          fi
+
+      - name: Hosting-matrix smoke + API protocol
+        env:
+          LI_HTTPD_PROXY_SNAP: "0"
+          LI_HTTPD_PROXY_C: "1"
+        run: |
+          set -eo pipefail
+          chmod +x scripts/hosting-matrix-smoke.sh scripts/hosting-matrix-api-protocol.sh
+          bash scripts/hosting-matrix-smoke.sh
+          bash scripts/hosting-matrix-api-protocol.sh
