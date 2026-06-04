@@ -31,7 +31,7 @@ jobs:
         with:
           repository: li-langverse/lic
           path: lic
-          ref: 92c9d99f3bf23c1e664b5300ddf30ac5cace6e3e
+          ref: 859b9311d813d865d43ae1e66e33dc912f4d0714
 
       - uses: actions/checkout@v4
         with:
@@ -91,7 +91,7 @@ jobs:
         with:
           repository: li-langverse/lic
           path: lic
-          ref: 92c9d99f3bf23c1e664b5300ddf30ac5cace6e3e
+          ref: 859b9311d813d865d43ae1e66e33dc912f4d0714
 
       - name: Build lic + li-httpd (lic-ci container)
         run: |
@@ -139,7 +139,7 @@ jobs:
         with:
           repository: li-langverse/lic
           path: lic
-          ref: 92c9d99f3bf23c1e664b5300ddf30ac5cace6e3e
+          ref: 859b9311d813d865d43ae1e66e33dc912f4d0714
 
       - name: Build lic + li-httpd (lic-ci container)
         run: |
