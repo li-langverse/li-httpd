@@ -241,7 +241,15 @@ export function dispatchApp(runtime, { method, path, query, headers, body, origi
     };
   }
 
-  if ((path === "/" || path === "/index.html") && method === "GET") {
+  if (
+    method === "GET" &&
+    (path === "/" ||
+      path === "/index.html" ||
+      path === "/node" ||
+      path === "/node/" ||
+      path === "/bun" ||
+      path === "/bun/")
+  ) {
     const peer = process.env.BACKEND_RUNTIME || runtime;
     return {
       status: 200,

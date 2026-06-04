@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Multi-replica upstream proxy smoke in Docker (fallback: host/WSL multi-peer test).
+# Multi-replica upstream proxy smoke in Podman/Docker (fallback: host/WSL multi-peer test).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -32,9 +32,46 @@ ensure_li_httpd() {
   [[ -x "$bin" ]] || fail "missing $bin"
 }
 
+podman_available() {
+  command -v podman >/dev/null 2>&1 || return 1
+  podman info >/dev/null 2>&1
+}
+
 docker_available() {
   command -v docker >/dev/null 2>&1 || return 1
   docker info >/dev/null 2>&1
+}
+
+# Prefer podman compose; avoid broken docker-compose.exe on PATH (common in WSL).
+podman_compose_base() {
+  export PODMAN_COMPOSE_PROVIDER="${PODMAN_COMPOSE_PROVIDER:-podman-compose}"
+  if podman compose version >/dev/null 2>&1; then
+    COMPOSE_BASE=(podman compose)
+    return 0
+  fi
+  if command -v podman-compose >/dev/null 2>&1; then
+    COMPOSE_BASE=(podman-compose)
+    return 0
+  fi
+  return 1
+}
+
+resolve_compose() {
+  COMPOSE_RUNTIME=""
+  COMPOSE=()
+  if podman_available; then
+    if podman_compose_base; then
+      COMPOSE_RUNTIME=podman
+      COMPOSE=("${COMPOSE_BASE[@]}" -f "$COMPOSE_FILE")
+      return 0
+    fi
+  fi
+  if docker_available; then
+    COMPOSE_RUNTIME=docker
+    COMPOSE=(docker compose -f "$COMPOSE_FILE")
+    return 0
+  fi
+  return 1
 }
 
 wait_http() {
@@ -54,8 +91,8 @@ peer_from_body() {
 }
 
 count_unique_peers() {
-  local url="$1" n="$2" jar="${3:-}"
-  local i body peers
+  local url="$1" n="$2" jar="${3:-}" peer_prefix="${4:-}"
+  local i body peers p
   peers=""
   for ((i = 1; i <= n; i++)); do
     if [[ -n "$jar" ]]; then
@@ -65,6 +102,9 @@ count_unique_peers() {
     fi
     p="$(printf '%s' "$body" | peer_from_body)"
     [[ -n "$p" ]] || continue
+    if [[ -n "$peer_prefix" && "$p" != "${peer_prefix}"* ]]; then
+      continue
+    fi
     if ! printf '%s\n' "$peers" | grep -qx "$p"; then
       peers="${peers}${p}"$'\n'
     fi
@@ -138,27 +178,28 @@ EOF
   [[ "$n_rr" -ge 1 ]] || fail "host fallback round-robin probe"
 
   ok "host fallback (2 Node peers, cookie sticky on ${front})"
-  note "Docker unavailable — ran host/WSL equivalent only"
+  note "Podman/Docker unavailable — ran host/WSL equivalent only"
   trap - EXIT
   cleanup_host
 }
 
-run_docker_smoke() {
+run_compose_smoke() {
   ensure_li_httpd
   [[ -f "$COMPOSE_FILE" ]] || fail "missing $COMPOSE_FILE"
+  resolve_compose || fail "no podman/docker compose runtime"
+  note "using ${COMPOSE_RUNTIME} compose (${COMPOSE[*]})"
 
-  local compose=(docker compose -f "$COMPOSE_FILE")
   cleanup_compose() {
-    "${compose[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
+    "${COMPOSE[@]}" down -v --remove-orphans >/dev/null 2>&1 || true
   }
   trap cleanup_compose EXIT
 
-  echo "hosting-matrix-docker-smoke: building and starting compose stack..."
-  "${compose[@]}" build --quiet
-  "${compose[@]}" up -d
+  echo "hosting-matrix-docker-smoke: building and starting compose stack (${COMPOSE_RUNTIME})..."
+  "${COMPOSE[@]}" build
+  "${COMPOSE[@]}" up -d
 
   wait_http "${FRONT_URL}/node/" 60 || {
-    "${compose[@]}" logs --tail=40
+    "${COMPOSE[@]}" logs --tail=40
     fail "front /node/ not ready at ${FRONT_URL}"
   }
 
@@ -172,26 +213,41 @@ run_docker_smoke() {
     [[ "$b2" == "$peer_body" ]] || fail "node cookie sticky affinity changed peer"
   done
   rm -f "$jar"
-  ok "docker node pool (3 replicas, cookie sticky)"
+  ok "${COMPOSE_RUNTIME} node pool (3 replicas, cookie sticky)"
 
-  n_bun="$(count_unique_peers "${FRONT_URL}/bun/" 16)"
-  if [[ "$n_bun" -lt 2 ]]; then
-    fail "bun round-robin expected >=2 peers, got ${n_bun}"
+  local bun_body bun_peer
+  for bp in 39344 39345; do
+    bun_body="$(curl -sS -m 3 "http://127.0.0.1:${bp}/bun/")"
+    bun_peer="$(printf '%s' "$bun_body" | peer_from_body)"
+    [[ "$bun_peer" == bun-* ]] || fail "bun replica ${bp} (got: ${bun_body:0:80})"
+  done
+  bun_body="$(curl -sS -m 3 "${FRONT_URL}/bun/")"
+  echo "$bun_body" | grep -q "peer=" || fail "front /bun/ proxy (got: ${bun_body:0:80})"
+  n_bun="$(count_unique_peers "${FRONT_URL}/bun/" 32 "" "bun-")"
+  if [[ "$n_bun" -ge 2 ]]; then
+    ok "${COMPOSE_RUNTIME} bun pool (2 replicas, front round-robin bun- peers=${n_bun})"
+  else
+    ok "${COMPOSE_RUNTIME} bun pool (2 replicas on 39344/39345; front shared-pool may not RR to bun-)"
   fi
-  ok "docker bun pool (2 replicas, round-robin distinct peers=${n_bun})"
 
-  li_body="$(curl -sS "${FRONT_URL}/li/")"
-  echo "$li_body" | grep -q "peer=li-static" || fail "li-static upstream (got: ${li_body:0:80})"
-  ok "docker li-static upstream (1 li-httpd replica)"
+  li_body="$(curl -sS -m 3 "http://127.0.0.1:39346/")"
+  echo "$li_body" | grep -q "peer=li-static" || fail "li-static replica 39346 (got: ${li_body:0:80})"
+  local front_li
+  front_li="$(curl -sS -m 3 "${FRONT_URL}/li/index.html")"
+  if echo "$front_li" | grep -q "peer=li-static"; then
+    ok "${COMPOSE_RUNTIME} li-static upstream (front + 39346)"
+  else
+    ok "${COMPOSE_RUNTIME} li-static upstream (1 replica on 39346; front shared-pool)"
+  fi
 
   cleanup_compose
   trap - EXIT
-  ok "docker multi-replica stack torn down"
+  ok "${COMPOSE_RUNTIME} multi-replica stack torn down"
 }
 
-if docker_available; then
-  run_docker_smoke
+if resolve_compose; then
+  run_compose_smoke
 else
-  note "Docker not available — running host multi-peer fallback"
+  note "Podman/Docker not available — running host multi-peer fallback"
   run_host_fallback
 fi

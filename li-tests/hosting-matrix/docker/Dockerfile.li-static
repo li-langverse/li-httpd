@@ -1,4 +1,4 @@
-FROM docker.io/library/debian:bookworm-slim
+FROM docker.io/library/ubuntu:24.04
 RUN apt-get update \
     && apt-get install -y --no-install-recommends python3 ca-certificates \
     && rm -rf /var/lib/apt/lists/*
@@ -9,8 +9,10 @@ COPY scripts/httpd_match.py /opt/li-httpd/scripts/httpd_match.py
 COPY scripts/httpd_m2.py /opt/li-httpd/scripts/httpd_m2.py
 COPY scripts/httpd_m3.py /opt/li-httpd/scripts/httpd_m3.py
 COPY scripts/httpd_m15.py /opt/li-httpd/scripts/httpd_m15.py
+COPY scripts/httpd_rng.py /opt/li-httpd/scripts/httpd_rng.py
 COPY scripts/httpd_tls.py /opt/li-httpd/scripts/httpd_tls.py
 COPY scripts/httpd_leak_censor.py /opt/li-httpd/scripts/httpd_leak_censor.py
+COPY scripts/schema_catalog.py /opt/li-httpd/scripts/schema_catalog.py
 COPY li-tests/hosting-matrix/docker/configs/li-static.toml /opt/li-httpd/config/li-static.toml
 COPY li-tests/hosting-matrix/docker/static-li /var/www
 RUN chmod +x /usr/local/bin/li-httpd

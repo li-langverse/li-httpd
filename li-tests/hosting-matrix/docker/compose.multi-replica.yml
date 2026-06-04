@@ -1,5 +1,5 @@
 # Multi-replica proxy smoke on host network (li-httpd upstream peers = 127.0.0.1:PORT).
-# Requires Linux/WSL Docker — host mode maps each replica to a distinct loopback port.
+# Requires Linux/WSL Podman or Docker — network_mode: host maps replicas to loopback ports.
 # Build context: li-httpd repo root.
 services:
   node-a:

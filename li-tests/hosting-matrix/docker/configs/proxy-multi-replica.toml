@@ -12,6 +12,7 @@ balance = "cookie"
 peers = ["http://127.0.0.1:39341", "http://127.0.0.1:39342", "http://127.0.0.1:39343"]
 
 [upstreams.bun_pool]
+balance = "round_robin"
 peers = ["http://127.0.0.1:39344", "http://127.0.0.1:39345"]
 
 [upstreams.li_static]
