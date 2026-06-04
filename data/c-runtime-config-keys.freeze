@@ -25,7 +25,7 @@ m2_queue_retry_after_sec
 m2_tls_terminate
 m2_webhook_allow
 m3_token_budget_enabled
-m3_token_budget_header
+m3_token_budget_heade
 m3_token_budget_max
 m3_token_budget_reject_over_cap
 model_match
@@ -36,10 +36,8 @@ route
 route_require
 stream_idle_timeout_sec
 stream_max_duration_sec
-tls_cert_dir
+tls_cert_di
 tls_enabled
-tls_manual_cert
-tls_manual_key
 upstream_balance
-upstream_peer
+upstream_pee
 workers
