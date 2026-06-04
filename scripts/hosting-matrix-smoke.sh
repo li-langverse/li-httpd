@@ -235,7 +235,7 @@ echo "$api_body" | grep -q "node upstream html" || {
   fail "proxy-node /api/* -> node (got: ${api_body:0:120})"
 }
 JAR="$(mktemp)"
-curl -sS --max-time 10 -c "$JAR" -b "$JAR" -X POST "http://127.0.0.1:39233/api/login" \
+curl -sS --http1.1 --max-time 20 -c "$JAR" -b "$JAR" -X POST "http://127.0.0.1:39233/api/login" \
   -H "content-type: application/json" \
   -d '{"user":"agent","pass":"secret"}' | grep -q '"ok":true' || {
   kill_served
