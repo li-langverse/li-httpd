@@ -45,3 +45,23 @@ Same commands if Podman is absent and Docker Desktop/WSL integration is running 
 | `li-static` | 39346 | `/li/**` |
 
 Front: `http://127.0.0.1:39300`
+
+## CI (GitHub Actions)
+
+Workflow: [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml), job **`hosting-matrix-podman-e2e`**.
+
+Runs on `ubuntu-24.04` for pushes and PRs to `main` and `feat/**` branches (in parallel with the lic-ci `check` job). The job:
+
+1. Builds `lic` + `li-httpd` via the pinned `ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22` image (Docker on the runner), copies `lic/build/li-httpd` → `build/li-httpd`.
+2. Installs **Podman** and **podman-compose** from apt.
+3. Runs `bash scripts/hosting-matrix-docker-smoke.sh` with `LI_HTTPD_PROXY_SNAP=0`, `LI_HTTPD_PROXY_C=1`, and `PODMAN_COMPOSE_PROVIDER=podman-compose`.
+
+The compose stack uses **`network_mode: host`** (required for loopback upstream peers). The `front` service sets proxy env vars in `compose.multi-replica.yml`.
+
+**Caveats on GitHub-hosted runners:**
+
+- **Host networking** must work for rootless or rootful Podman; the job fails (no `continue-on-error`) if Podman/compose cannot start the stack — it does not accept the host-only Node fallback as a substitute for a green CI run.
+- **Image builds** pull `node:22-bookworm-slim` and `oven/bun:1.2`; recent `ubuntu-24.04` runner images occasionally break HTTPS inside container build networks. If builds fail with certificate errors, retry with Podman build `--network=host` (see [actions/runner-images#13422](https://github.com/actions/runner-images/issues/13422)).
+- Timeout is **20 minutes** (compose build + smoke probes).
+
+Local verification matches CI: same script and env vars on WSL/Linux with Podman 4.9+.

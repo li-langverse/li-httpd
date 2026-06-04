@@ -65,6 +65,9 @@ services:
       context: ../../..
       dockerfile: li-tests/hosting-matrix/docker/Dockerfile.httpd
     network_mode: host
+    environment:
+      LI_HTTPD_PROXY_SNAP: "0"
+      LI_HTTPD_PROXY_C: "1"
     depends_on:
       - node-a
       - node-b
