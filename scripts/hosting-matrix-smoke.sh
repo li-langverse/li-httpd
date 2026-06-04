@@ -163,6 +163,12 @@ kill_pid() {
   local pid="$1"
   [[ -n "$pid" ]] || return 0
   kill "$pid" >/dev/null 2>&1 || true
+  local i=0
+  while kill -0 "$pid" >/dev/null 2>&1 && (( i < 25 )); do
+    sleep 0.2
+    i=$((i + 1))
+  done
+  kill -9 "$pid" >/dev/null 2>&1 || true
   wait "$pid" >/dev/null 2>&1 || true
 }
 
@@ -375,7 +381,7 @@ if ensure_bun; then
   fi
   bun_api_body=""
   for _ in 1 2 3 4 5; do
-    bun_api_body="$(curl -sS --http1.1 "http://127.0.0.1:39235/api/page" 2>/dev/null || true)"
+    bun_api_body="$(curl -sS --http1.1 --max-time 10 "http://127.0.0.1:39235/api/page" 2>/dev/null || true)"
     echo "$bun_api_body" | grep -q "bun upstream html" && break
     sleep 0.15
   done
@@ -483,7 +489,7 @@ fi
 STICKY_JAR="$(mktemp)"
 peer_body=""
 for _ in 1 2 3 4 5; do
-  peer_body="$(curl -sS --http1.1 -c "$STICKY_JAR" -b "$STICKY_JAR" "http://127.0.0.1:39243/")"
+  peer_body="$(curl -sS --http1.1 --max-time 10 -c "$STICKY_JAR" -b "$STICKY_JAR" "http://127.0.0.1:39243/")"
   sleep 0.05
 done
 echo "$peer_body" | grep -q "peer=" || {
@@ -493,7 +499,7 @@ echo "$peer_body" | grep -q "peer=" || {
   fail "sticky cookie body (got: ${peer_body:0:80})"
 }
 for _ in 1 2 3; do
-  b2="$(curl -sS --http1.1 -b "$STICKY_JAR" "http://127.0.0.1:39243/")"
+  b2="$(curl -sS --http1.1 --max-time 10 -b "$STICKY_JAR" "http://127.0.0.1:39243/")"
   [[ "$b2" == "$peer_body" ]] || {
     kill_served
     kill_pid "$PID_PA" "$PID_PB"
