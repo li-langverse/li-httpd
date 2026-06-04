@@ -76,13 +76,42 @@ resolve_compose() {
 
 wait_http() {
   local url="$1" tries="${2:-40}"
-  local i
+  local i code
   for ((i = 1; i <= tries; i++)); do
-    if curl -fsS -m 2 "$url" >/dev/null 2>&1; then
+    code="$(curl -sS -o /dev/null -w "%{http_code}" -m 2 "$url" 2>/dev/null || echo "000")"
+    if [[ "$code" =~ ^[0-9]{3}$ ]] && [[ "$code" != "000" ]]; then
       return 0
     fi
     sleep 0.5
   done
+  return 1
+}
+
+wait_sticky_peer() {
+  local url="$1" jar="$2" tries="${3:-8}"
+  local i body
+  for ((i = 1; i <= tries; i++)); do
+    body="$(curl -sS --http1.1 -m 3 -c "$jar" -b "$jar" "$url" 2>/dev/null || true)"
+    if echo "$body" | grep -q "peer="; then
+      printf '%s' "$body"
+      return 0
+    fi
+    sleep 0.25
+  done
+  return 1
+}
+
+assert_sticky_affinity() {
+  local url="$1" jar="$2" peer_body="$3" tries="${4:-8}"
+  local i b2
+  for ((i = 1; i <= tries; i++)); do
+    b2="$(curl -sS --http1.1 -m 3 -b "$jar" "$url" 2>/dev/null || true)"
+    if [[ "$b2" == "$peer_body" ]]; then
+      return 0
+    fi
+    sleep 0.25
+  done
+  printf '%s' "$b2"
   return 1
 }
 
@@ -168,10 +197,8 @@ EOF
 
   local jar peer_body b2 n_rr
   jar="$(mktemp)"
-  peer_body="$(curl -sS -c "$jar" -b "$jar" "http://127.0.0.1:${front}/")"
-  echo "$peer_body" | grep -q "peer=" || fail "host fallback sticky body"
-  b2="$(curl -sS -b "$jar" "http://127.0.0.1:${front}/")"
-  [[ "$b2" == "$peer_body" ]] || fail "host fallback sticky affinity"
+  peer_body="$(wait_sticky_peer "http://127.0.0.1:${front}/" "$jar" 8)" || fail "host fallback sticky body"
+  b2="$(assert_sticky_affinity "http://127.0.0.1:${front}/" "$jar" "$peer_body" 8)" || fail "host fallback sticky affinity (got: ${b2:0:80})"
   rm -f "$jar"
 
   n_rr="$(count_unique_peers "http://127.0.0.1:${front}/" 12)"
@@ -202,16 +229,17 @@ run_compose_smoke() {
     "${COMPOSE[@]}" logs --tail=40
     fail "front /node/ not ready at ${FRONT_URL}"
   }
+  for p in 39341 39342 39343; do
+    wait_http "http://127.0.0.1:${p}/health" 40 || fail "node replica ${p} health"
+  done
+  sleep 0.5
 
-  local jar peer_body n_bun n_node li_body
+  local jar peer_body b2 n_bun n_node li_body
   jar="$(mktemp)"
 
-  peer_body="$(curl -sS -c "$jar" -b "$jar" "${FRONT_URL}/node/")"
+  peer_body="$(wait_sticky_peer "${FRONT_URL}/node/" "$jar" 10)" || fail "node pool body (got: ${peer_body:0:80})"
   echo "$peer_body" | grep -q "peer=node-" || fail "node pool body (got: ${peer_body:0:80})"
-  for _ in 1 2 3; do
-    b2="$(curl -sS -b "$jar" "${FRONT_URL}/node/")"
-    [[ "$b2" == "$peer_body" ]] || fail "node cookie sticky affinity changed peer"
-  done
+  b2="$(assert_sticky_affinity "${FRONT_URL}/node/" "$jar" "$peer_body" 12)" || fail "node cookie sticky affinity changed peer (got: ${b2:0:80})"
   rm -f "$jar"
   ok "${COMPOSE_RUNTIME} node pool (3 replicas, cookie sticky)"
 

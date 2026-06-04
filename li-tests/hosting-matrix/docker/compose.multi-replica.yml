@@ -68,6 +68,7 @@ services:
     environment:
       LI_HTTPD_PROXY_SNAP: "0"
       LI_HTTPD_PROXY_C: "1"
+      LI_HTTPD_WORKERS: "1"
     depends_on:
       - node-a
       - node-b

@@ -373,10 +373,16 @@ if ensure_bun; then
     kill_pid "$PID_BUN"
     fail "proxy-bun"
   fi
-  curl -sS --http1.1 "http://127.0.0.1:39235/api/page" 2>/dev/null | grep -q "bun upstream html" || {
+  bun_api_body=""
+  for _ in 1 2 3 4 5; do
+    bun_api_body="$(curl -sS --http1.1 "http://127.0.0.1:39235/api/page" 2>/dev/null || true)"
+    echo "$bun_api_body" | grep -q "bun upstream html" && break
+    sleep 0.15
+  done
+  echo "$bun_api_body" | grep -q "bun upstream html" || {
     kill_served
     kill_pid "$PID_BUN"
-    fail "proxy-bun body"
+    fail "proxy-bun body (got: ${bun_api_body:0:120})"
   }
   kill_served
   kill_pid "$PID_BUN"
