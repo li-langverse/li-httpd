@@ -243,21 +243,21 @@ curl -sS --http1.1 --max-time 20 -c "$JAR" -b "$JAR" -X POST "http://127.0.0.1:3
   rm -f "$JAR"
   fail "proxy login Set-Cookie"
 }
-code_me="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -b "$JAR" "http://127.0.0.1:39233/api/me")"
+code_me="$(curl -sS --http1.1 --max-time 10 -o /dev/null -w "%{http_code}" -b "$JAR" "http://127.0.0.1:39233/api/me")"
 [[ "$code_me" == "200" ]] || {
   kill_served
   kill_pid "$PID_NODE"
   rm -f "$JAR"
   fail "proxy /api/me with session cookie (code=$code_me)"
 }
-code_anon="$(curl -sS -o /dev/null -w "%{http_code}" "http://127.0.0.1:39233/api/me")"
+code_anon="$(curl -sS --http1.1 -o /dev/null -w "%{http_code}" "http://127.0.0.1:39233/api/me")"
 [[ "$code_anon" == "401" ]] || {
   kill_served
   kill_pid "$PID_NODE"
   rm -f "$JAR"
   fail "proxy /api/me without cookie should 401 (code=$code_anon)"
 }
-echo '{"hello":"li-httpd"}' | curl -sS --max-time 10 -b "$JAR" -X POST "http://127.0.0.1:39233/api/echo" \
+echo '{"hello":"li-httpd"}' | curl -sS --http1.1 --max-time 10 -b "$JAR" -X POST "http://127.0.0.1:39233/api/echo" \
   -H "content-type: application/json" -d @- | grep -q 'hello' || {
   kill_served
   kill_pid "$PID_NODE"
@@ -266,7 +266,7 @@ echo '{"hello":"li-httpd"}' | curl -sS --max-time 10 -b "$JAR" -X POST "http://1
 }
 
 # REST CRUD through proxy
-rest_create="$(curl -sS --max-time 10 -X POST "http://127.0.0.1:39233/api/rest/users" \
+rest_create="$(curl -sS --http1.1 --max-time 10 -X POST "http://127.0.0.1:39233/api/rest/users" \
   -H "content-type: application/json" -d '{"name":"Charlie","email":"c@example.com"}')"
 echo "$rest_create" | grep -q '"name":"Charlie"' || {
   kill_served
@@ -275,28 +275,28 @@ echo "$rest_create" | grep -q '"name":"Charlie"' || {
   fail "REST POST create user (got: ${rest_create:0:120})"
 }
 new_id="$(echo "$rest_create" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])")"
-curl -sS --max-time 10 -X PUT "http://127.0.0.1:39233/api/rest/users/${new_id}" \
+curl -sS --http1.1 --max-time 10 -X PUT "http://127.0.0.1:39233/api/rest/users/${new_id}" \
   -H "content-type: application/json" -d '{"name":"Charles","email":"c@example.com"}' | grep -q '"name":"Charles"' || {
   kill_served
   kill_pid "$PID_NODE"
   rm -f "$JAR"
   fail "REST PUT update user"
 }
-curl -sS --max-time 10 -X PATCH "http://127.0.0.1:39233/api/rest/users/${new_id}" \
+curl -sS --http1.1 --max-time 10 -X PATCH "http://127.0.0.1:39233/api/rest/users/${new_id}" \
   -H "content-type: application/json" -d '{"email":"charles@example.com"}' | grep -q 'charles@example.com' || {
   kill_served
   kill_pid "$PID_NODE"
   rm -f "$JAR"
   fail "REST PATCH partial update"
 }
-code_del="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -X DELETE "http://127.0.0.1:39233/api/rest/users/${new_id}")"
+code_del="$(curl -sS --http1.1 --max-time 10 -o /dev/null -w "%{http_code}" -X DELETE "http://127.0.0.1:39233/api/rest/users/${new_id}")"
 [[ "$code_del" == "204" ]] || {
   kill_served
   kill_pid "$PID_NODE"
   rm -f "$JAR"
   fail "REST DELETE should 204 (code=$code_del)"
 }
-curl -sS --max-time 10 "http://127.0.0.1:39233/api/rest/users?filter=Alice" | grep -q '"name":"Alice"' || {
+curl -sS --http1.1 --max-time 10 "http://127.0.0.1:39233/api/rest/users?filter=Alice" | grep -q '"name":"Alice"' || {
   kill_served
   kill_pid "$PID_NODE"
   rm -f "$JAR"
@@ -305,7 +305,7 @@ curl -sS --max-time 10 "http://127.0.0.1:39233/api/rest/users?filter=Alice" | gr
 
 # SOAP XML through proxy
 SOAP_BODY='<?xml version="1.0"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><test/></soap:Body></soap:Envelope>'
-soap_resp="$(curl -sS --max-time 10 -X POST "http://127.0.0.1:39233/api/soap" \
+soap_resp="$(curl -sS --http1.1 --max-time 10 -X POST "http://127.0.0.1:39233/api/soap" \
   -H "content-type: text/xml" \
   -H 'SOAPAction: "urn:test#Echo"' \
   -d "$SOAP_BODY")"
@@ -323,7 +323,7 @@ echo "$soap_resp" | grep -q 'urn:test#Echo' || {
 }
 
 # Header passthrough (Authorization, X-Custom, SOAPAction, Accept)
-hdr_body="$(curl -sS --max-time 10 "http://127.0.0.1:39233/api/headers" \
+hdr_body="$(curl -sS --http1.1 --max-time 10 "http://127.0.0.1:39233/api/headers" \
   -H "authorization: Bearer smoke-token" \
   -H "x-custom: matrix-test" \
   -H 'SOAPAction: "urn:headers"' \
@@ -342,7 +342,7 @@ echo "$hdr_body" | grep -q 'matrix-test' || {
 }
 
 # CORS preflight for PUT
-code_opts="$(curl -sS --max-time 10 -o /dev/null -w "%{http_code}" -X OPTIONS "http://127.0.0.1:39233/api/rest/users" \
+code_opts="$(curl -sS --http1.1 --max-time 10 -o /dev/null -w "%{http_code}" -X OPTIONS "http://127.0.0.1:39233/api/rest/users" \
   -H "origin: http://example.com" \
   -H "access-control-request-method: PUT")"
 [[ "$code_opts" == "204" ]] || {
@@ -477,7 +477,7 @@ fi
 STICKY_JAR="$(mktemp)"
 peer_body=""
 for _ in 1 2 3 4 5; do
-  peer_body="$(curl -sS -c "$STICKY_JAR" -b "$STICKY_JAR" "http://127.0.0.1:39243/")"
+  peer_body="$(curl -sS --http1.1 -c "$STICKY_JAR" -b "$STICKY_JAR" "http://127.0.0.1:39243/")"
   sleep 0.05
 done
 echo "$peer_body" | grep -q "peer=" || {
@@ -487,7 +487,7 @@ echo "$peer_body" | grep -q "peer=" || {
   fail "sticky cookie body (got: ${peer_body:0:80})"
 }
 for _ in 1 2 3; do
-  b2="$(curl -sS -b "$STICKY_JAR" "http://127.0.0.1:39243/")"
+  b2="$(curl -sS --http1.1 -b "$STICKY_JAR" "http://127.0.0.1:39243/")"
   [[ "$b2" == "$peer_body" ]] || {
     kill_served
     kill_pid "$PID_PA" "$PID_PB"
