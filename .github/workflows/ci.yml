@@ -162,17 +162,27 @@ jobs:
         run: |
           set -eo pipefail
           sudo apt-get update -qq
-          sudo apt-get install -y -qq curl python3 ca-certificates nodejs
-          if [[ -f li-tests/hosting-matrix/backends/package.json ]]; then
-            ( cd li-tests/hosting-matrix/backends && npm install --no-audit --no-fund )
+          sudo apt-get install -y -qq curl python3 ca-certificates nodejs npm
+          # Bun is optional in hosting-matrix-smoke (SKIP when unavailable).
+          if [[ -f li-tests/hosting-matrix/backends/package-lock.json ]]; then
+            ( cd li-tests/hosting-matrix/backends && npm ci --no-audit --no-fund ) || \
+              echo "hosting-matrix-features: WARN optional bun npm ci failed; bun tests will SKIP"
           fi
 
-      - name: Hosting-matrix smoke + API protocol
+      - name: Hosting-matrix smoke
         env:
           LI_HTTPD_PROXY_SNAP: "0"
           LI_HTTPD_PROXY_C: "1"
         run: |
           set -eo pipefail
-          chmod +x scripts/hosting-matrix-smoke.sh scripts/hosting-matrix-api-protocol.sh
+          chmod +x scripts/hosting-matrix-smoke.sh
           bash scripts/hosting-matrix-smoke.sh
+
+      - name: Hosting-matrix API protocol
+        env:
+          LI_HTTPD_PROXY_SNAP: "0"
+          LI_HTTPD_PROXY_C: "1"
+        run: |
+          set -eo pipefail
+          chmod +x scripts/hosting-matrix-api-protocol.sh
           bash scripts/hosting-matrix-api-protocol.sh
