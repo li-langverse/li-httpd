@@ -13,6 +13,7 @@ leak_censor_enabled
 leak_censor_on_detect
 leak_censor_pattern
 listen_port
+listen_port_http
 m2_cb_error_threshold
 m2_cb_half_open_probes
 m2_cb_open_duration_sec
@@ -37,6 +38,8 @@ stream_idle_timeout_sec
 stream_max_duration_sec
 tls_cert_dir
 tls_enabled
+tls_manual_cert
+tls_manual_key
 upstream_balance
 upstream_peer
 workers
