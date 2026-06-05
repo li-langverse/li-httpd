@@ -1,0 +1,21 @@
+FROM docker.io/library/ubuntu:24.04
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 ca-certificates curl \
+    && rm -rf /var/lib/apt/lists/*
+COPY build/li-httpd /usr/local/bin/li-httpd
+COPY scripts/flatten-httpd-config.py /opt/li-httpd/scripts/flatten-httpd-config.py
+COPY scripts/httpd_config.py /opt/li-httpd/scripts/httpd_config.py
+COPY scripts/httpd_match.py /opt/li-httpd/scripts/httpd_match.py
+COPY scripts/httpd_m2.py /opt/li-httpd/scripts/httpd_m2.py
+COPY scripts/httpd_m3.py /opt/li-httpd/scripts/httpd_m3.py
+COPY scripts/httpd_m15.py /opt/li-httpd/scripts/httpd_m15.py
+COPY scripts/httpd_rng.py /opt/li-httpd/scripts/httpd_rng.py
+COPY scripts/httpd_tls.py /opt/li-httpd/scripts/httpd_tls.py
+COPY scripts/httpd_leak_censor.py /opt/li-httpd/scripts/httpd_leak_censor.py
+COPY scripts/schema_catalog.py /opt/li-httpd/scripts/schema_catalog.py
+COPY li-tests/hosting-matrix/static /opt/li-httpd/static
+COPY li-tests/hosting-matrix/docker/configs/proxy-multi-replica.toml /opt/li-httpd/config/proxy-multi-replica.toml
+RUN chmod +x /usr/local/bin/li-httpd
+WORKDIR /opt/li-httpd
+EXPOSE 39300
+CMD ["sh", "-c", "python3 scripts/flatten-httpd-config.py config/proxy-multi-replica.toml -o /tmp/httpd.conf && exec li-httpd /tmp/httpd.conf"]

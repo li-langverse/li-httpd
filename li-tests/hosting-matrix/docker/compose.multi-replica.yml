@@ -1,0 +1,78 @@
+# Multi-replica proxy smoke on host network (li-httpd upstream peers = 127.0.0.1:PORT).
+# Requires Linux/WSL Podman or Docker — network_mode: host maps replicas to loopback ports.
+# Build context: li-httpd repo root.
+services:
+  node-a:
+    build:
+      context: ../../..
+      dockerfile: li-tests/hosting-matrix/docker/Dockerfile.node-backend
+    network_mode: host
+    environment:
+      BACKEND_RUNTIME: node-a
+      BACKEND_HOST: 127.0.0.1
+      BACKEND_PORT: "39341"
+
+  node-b:
+    build:
+      context: ../../..
+      dockerfile: li-tests/hosting-matrix/docker/Dockerfile.node-backend
+    network_mode: host
+    environment:
+      BACKEND_RUNTIME: node-b
+      BACKEND_HOST: 127.0.0.1
+      BACKEND_PORT: "39342"
+
+  node-c:
+    build:
+      context: ../../..
+      dockerfile: li-tests/hosting-matrix/docker/Dockerfile.node-backend
+    network_mode: host
+    environment:
+      BACKEND_RUNTIME: node-c
+      BACKEND_HOST: 127.0.0.1
+      BACKEND_PORT: "39343"
+
+  bun-a:
+    build:
+      context: ../../..
+      dockerfile: li-tests/hosting-matrix/docker/Dockerfile.bun-backend
+    network_mode: host
+    environment:
+      BACKEND_RUNTIME: bun-a
+      BACKEND_HOST: 127.0.0.1
+      BACKEND_PORT: "39344"
+
+  bun-b:
+    build:
+      context: ../../..
+      dockerfile: li-tests/hosting-matrix/docker/Dockerfile.bun-backend
+    network_mode: host
+    environment:
+      BACKEND_RUNTIME: bun-b
+      BACKEND_HOST: 127.0.0.1
+      BACKEND_PORT: "39345"
+
+  li-static:
+    build:
+      context: ../../..
+      dockerfile: li-tests/hosting-matrix/docker/Dockerfile.li-static
+    network_mode: host
+    environment:
+      LI_STATIC_PORT: "39346"
+
+  front:
+    build:
+      context: ../../..
+      dockerfile: li-tests/hosting-matrix/docker/Dockerfile.httpd
+    network_mode: host
+    environment:
+      LI_HTTPD_PROXY_SNAP: "0"
+      LI_HTTPD_PROXY_C: "1"
+      LI_HTTPD_WORKERS: "1"
+    depends_on:
+      - node-a
+      - node-b
+      - node-c
+      - bun-a
+      - bun-b
+      - li-static

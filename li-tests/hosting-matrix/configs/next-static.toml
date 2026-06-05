@@ -1,0 +1,12 @@
+# Next.js production static export layout (_next/static/...).
+[server]
+listen = "127.0.0.1:39236"
+document_root = "../next-static"
+
+[limits]
+rate_limit_rps = 10000
+rate_limit_burst = 20000
+
+[routes]
+"GET /index.html" = "static"
+"GET /_next/**" = "static:next"

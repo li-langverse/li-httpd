@@ -1,0 +1,22 @@
+# Full app API + static (cookies, POST JSON, sessions).
+[server]
+listen = "127.0.0.1:39241"
+document_root = "../static"
+
+[limits]
+rate_limit_rps = 10000
+rate_limit_burst = 20000
+
+[upstreams.app]
+peers = ["http://127.0.0.1:39242"]
+
+[routes]
+"GET /api/*" = "proxy:app"
+"POST /api/*" = "proxy:app"
+"PUT /api/*" = "proxy:app"
+"PATCH /api/*" = "proxy:app"
+"DELETE /api/*" = "proxy:app"
+"OPTIONS /api/*" = "proxy:app"
+"GET /index.html" = "static"
+"GET /assets/**" = "static:assets"
+"GET /login.html" = "static"

@@ -21,6 +21,7 @@ PY
 chmod +x "$ROOT/li-httpd" || true
 
 # Build dependencies used by the wrapper (server + Li flatten harness).
+export LIC_ROOT="${LIC_ROOT:-$ROOT/../lic}"
 bash "$ROOT/scripts/build-li-httpd.sh"
 bash "$ROOT/scripts/build-flatten-one.sh"
 
