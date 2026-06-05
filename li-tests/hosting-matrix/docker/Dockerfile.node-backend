@@ -1,0 +1,9 @@
+FROM docker.io/library/node:22-bookworm-slim
+WORKDIR /app
+COPY li-tests/hosting-matrix/backends/package.json li-tests/hosting-matrix/backends/package-lock.json ./
+RUN npm ci --omit=dev 2>/dev/null || true
+COPY li-tests/hosting-matrix/backends/node-server.mjs li-tests/hosting-matrix/backends/app-handler.mjs li-tests/hosting-matrix/backends/http-common.mjs ./
+ENV BACKEND_HOST=127.0.0.1
+ENV BACKEND_PORT=8080
+EXPOSE 8080
+CMD ["node", "node-server.mjs"]

@@ -1086,7 +1086,10 @@ def httpd_run_from_runtime_config(path: var ptr) raises Net, Alloc, IO -> int
   if httpd_tls_enabled_i() == 1:
     return httpd_upstream_proxy_epoll_loop(p, r)
   if httpd_proxy_configured_i() == 1:
-    return httpd_upstream_proxy_epoll_loop(p, r)
+    if httpd_env_li_proxy_loop_i() == 1:
+      return httpd_upstream_proxy_epoll_loop(p, r)
+    var up: int = httpd_proxy_upstream_port_i()
+    return httpd_epoll_serve_proxy_i(p, r, up)
   return httpd_serve_port_root(p, r)
 
 def httpd_run_from_argv() raises Net, Alloc, IO -> int
@@ -1114,7 +1117,10 @@ def httpd_run_from_argv() raises Net, Alloc, IO -> int
         var mode_arg: ptr = li_rt_argv_i(4)
         var lcm: int = httpd_lb_mode_from_arg_i(mode_arg)
         httpd_set_lb_mode_i(lcm)
-      return httpd_upstream_proxy_epoll_loop(p, r)
+      if httpd_env_li_proxy_loop_i() == 1:
+        return httpd_upstream_proxy_epoll_loop(p, r)
+      var up: int = httpd_proxy_upstream_port_i()
+      return httpd_epoll_serve_proxy_i(p, r, up)
     var bp: int = httpd_parse_port_i(backend_arg)
     return httpd_serve_port_root_proxy(p, r, bp)
   return httpd_serve_port_root(p, r)

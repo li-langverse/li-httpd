@@ -11,6 +11,4 @@ rate_limit_burst = 20000
 peers = ["http://127.0.0.1:39237"]
 
 [routes]
-"GET /index.html" = "proxy:next"
-"GET /assets/**" = "proxy:next"
-"GET /_next/**" = "proxy:next"
+"GET /*" = "proxy:next"

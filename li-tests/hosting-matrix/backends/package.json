@@ -1,0 +1,8 @@
+{
+  "name": "li-httpd-hosting-matrix-backends",
+  "private": true,
+  "description": "Optional bun for hosting-matrix-smoke.sh in WSL",
+  "dependencies": {
+    "bun": "1.3.11"
+  }
+}

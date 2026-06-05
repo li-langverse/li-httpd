@@ -19,7 +19,7 @@ loop is **frozen**: no new keys may be added in C after phase B1.
 bash scripts/lint-frozen-c-config-keys.sh
 ```
 
-Compares live strcmp keys against `data/c-runtime-config-keys.freeze` (41 keys).
+Compares live strcmp keys against `data/c-runtime-config-keys.freeze` (40 keys).
 
 ## Apply path (transitional)
 

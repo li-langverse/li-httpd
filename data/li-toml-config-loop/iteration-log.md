@@ -19,4 +19,4 @@
 | 2026-06-02 | phase-c-retire-c | code_implementer | phase-c-retire-c-gate.sh OK | Froze 40 C runtime.conf keys; lint + Li apply surface (`apply.li`); CI runs B2+C gates. |
 | 2026-06-02 | phase-c-retire-c | code_implementer | phase-c-retire-c-gate.sh OK | Re-verified Phase C gate in isolated workflow clone (freeze lint + parity check). |
 | 2026-06-02 | phase-d-done | code_implementer | li-toml-config-completion-gate.sh OK | Default `LI_HTTPD_CONFIG_PIPELINE=li` in benchmarks; `harness/httpd_flatten.py`; Python flatten deprecated. |
-| 2026-06-03 | phase-d-done | code_implementer | li-toml-config-completion-gate.sh OK | Fixed BENCHMARKS_ROOT in phase-0 gate; dropped stale py-permissive reject list; synced freeze with lic `listen_port_http`. |
+| 2026-06-05 | phase-d-done | code_implementer | merge(main) + gates | Merged `main` (#30 edge flatten/TLS); fixed BENCHMARKS_ROOT in phase-0 gate; PR #31 dirty state resolved. |

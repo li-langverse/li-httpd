@@ -1,0 +1,7 @@
+FROM docker.io/oven/bun:1.2
+WORKDIR /app
+COPY li-tests/hosting-matrix/backends/bun-server.mjs li-tests/hosting-matrix/backends/app-handler.mjs li-tests/hosting-matrix/backends/http-common.mjs ./
+ENV BACKEND_HOST=127.0.0.1
+ENV BACKEND_PORT=8080
+EXPOSE 8080
+CMD ["bun", "run", "bun-server.mjs"]
