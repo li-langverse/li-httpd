@@ -1,5 +1,5 @@
-# Pin lic for reproducible CI (synced from lic @ 55defd82, studio-demo-2026-05-24).
+# Pin lic for reproducible CI (synced from lic @ 33757321).
 [toolchain]
 lic_version = "0.1.0"
-lic_commit = "55defd82878884ff46de304778741691d2ef1671"
+lic_commit = "337573217951eee086f529f1f2452b680a28445c"
 lit_version = "0.1.0"
