@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump lic toolchain pin to `studio-demo-2026-05-24` (`55defd82`).
 - Build `lic build packages/li-net-httpd/src/lib.li -o li-httpd` (no C sources in package).
 
 ## [0.1.0] - 2026-05-16
