@@ -1,4 +1,4 @@
-# Pin lic for reproducible CI (synced from lic @ 33757321).
+# Pin lic for reproducible CI (33757321; supersedes tag studio-ui-ux-progress / 55defd82).
 [toolchain]
 lic_version = "0.1.0"
 lic_commit = "337573217951eee086f529f1f2452b680a28445c"

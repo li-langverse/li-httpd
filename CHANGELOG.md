@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Ecosystem sync: `li-toolchain.toml` `lic_commit` (`33757321`) already supersedes upstream tag `studio-ui-ux-progress` (`55defd82`); no pin downgrade required for li-httpd.
 - Build `lic build packages/li-net-httpd/src/lib.li -o li-httpd` (no C sources in package).
 
 ## [0.1.0] - 2026-05-16
