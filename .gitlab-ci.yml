@@ -22,8 +22,8 @@ check:
     name: ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22
     pull_policy: if-not-present
   before_script:
-    - git clone --depth 1 https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/li-langverse/lic.git lic || true
-    - git clone --depth 1 https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/li-langverse/li-toml.git li-toml || true
+    - git clone --depth 1 http://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/li-langverse/lic.git lic || true
+    - git clone --depth 1 http://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/li-langverse/li-toml.git li-toml || true
   script:
     - cd lic && chmod +x scripts/build.sh && ./scripts/build.sh
     - |
