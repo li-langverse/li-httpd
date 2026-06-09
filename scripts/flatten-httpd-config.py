@@ -64,12 +64,13 @@ def route_pool_id(action: str) -> str:
 def emit_route_line(r, vhost: str) -> str:
     kind = r.path_kind if r.path_kind in ("exact", "prefix", "prefix_strip") else "prefix"
     action = "proxy" if r.action.startswith("proxy:") else "static"
+    pool = r.action.split(":", 1)[1] if r.action.startswith("proxy:") else ""
     rrps = getattr(r, "rate_limit_rps", 0)
     rburst = getattr(r, "rate_limit_burst", 0)
     if rrps > 0:
         burst = rburst if rburst > 0 else rrps
-        return f"route={r.method}|{r.path}|{kind}|{action}|{rrps}|{burst}"
-    return f"route={r.method}|{r.path}|{kind}|{action}"
+        return f"route={r.method}|{r.path}|{kind}|{action}|{pool}|{vhost}|{rrps}|{burst}"
+    return f"route={r.method}|{r.path}|{kind}|{action}|{pool}|{vhost}"
 
 
 def flatten_site_routes(site: HttpdConfig, lines: list[str]) -> bool:
@@ -92,13 +93,13 @@ def flatten_upstream_pools(data: dict, lines: list[str]) -> None:
     for key, val in data.items():
         if key.startswith("upstreams.") and isinstance(val, dict):
             pools.append((key.split(".", 1)[1], val))
-    for _pool_id, spec in pools:
+    for pool_id, spec in pools:
         for peer in spec.get("peers") or []:
-            _host, port = peer_host_port(str(peer))
-            lines.append(f"upstream_peer={port}")
-        bal = spec.get("balance")
+            host, port = peer_host_port(str(peer))
+            lines.append(f"upstream_peer={pool_id}|{host}|{port}")
+        bal = spec.get("balance") if spec.get("balance") is not None else spec.get("policy")
         if bal is not None and str(bal).strip():
-            lines.append(f"upstream_balance={str(bal).strip()}")
+            lines.append(f"upstream_balance={pool_id}|{str(bal).strip()}")
 
 
 def flatten(cfg_path: Path) -> list[str]:
