@@ -30,6 +30,7 @@ check:
       LIC="$CI_PROJECT_DIR/lic/build/compiler/lic/lic"
       test -x "$LIC"
       "$LIC" build --allow-open-vc packages/li-net-httpd/src/main.li -o /tmp/li-httpd-ci
+    - export LIC="$CI_PROJECT_DIR/lic/build/compiler/lic/lic"
     - export LI_TOML_ROOT="$CI_PROJECT_DIR/li-toml"
     - cd "$CI_PROJECT_DIR"
     - bash scripts/gates/phase-a0-parse-gate.sh
