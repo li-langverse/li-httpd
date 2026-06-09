@@ -1,0 +1,37 @@
+# Mirrors li-httpd/.github/workflows/ci.yml (check job only).
+# Uses ghcr.io/li-langverse/lic-ci image — configure registry auth on runner (imagePullSecrets).
+
+stages:
+  - test
+
+default:
+  tags:
+    - homelab-k8s
+  interruptible: true
+
+variables:
+  LLVM_DIR: /usr/lib/llvm-22/lib/cmake/llvm
+  CC: clang-22
+  CXX: clang++-22
+
+check:
+  stage: test
+  image:
+    name: ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22
+    pull_policy: if-not-present
+  before_script:
+    - git clone --depth 1 https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/li-langverse/lic.git lic || true
+    - git clone --depth 1 https://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/li-langverse/li-toml.git li-toml || true
+  script:
+    - cd lic && chmod +x scripts/build.sh && ./scripts/build.sh
+    - |
+      LIC="$CI_PROJECT_DIR/lic/build/compiler/lic/lic"
+      test -x "$LIC"
+      "$LIC" build --allow-open-vc packages/li-net-httpd/src/main.li -o /tmp/li-httpd-ci
+    - ln -sfn "$CI_PROJECT_DIR/li-toml" ../li-toml
+    - bash scripts/gates/phase-a0-parse-gate.sh
+    - bash scripts/gates/phase-b1-parity-gate.sh
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH =~ /^feat\//
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
