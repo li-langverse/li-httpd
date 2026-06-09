@@ -1,5 +1,5 @@
 # Mirrors li-httpd/.github/workflows/ci.yml (check job only).
-# Uses ghcr.io/li-langverse/lic-ci image — configure registry auth on runner (imagePullSecrets).
+# Uses ghcr.io/li-langverse/lic-ci image ??? configure registry auth on runner (imagePullSecrets).
 
 stages:
   - test
@@ -10,11 +10,11 @@ default:
   interruptible: true
 
 variables:
-  GIT_SSL_NO_VERIFY: "true"
-  CI_SERVER_HOST: gitlab.gitlab.svc.cluster.local
   LLVM_DIR: /usr/lib/llvm-22/lib/cmake/llvm
   CC: clang-22
   CXX: clang++-22
+  GIT_SSL_NO_VERIFY: "true"
+  CI_SERVER_HOST: gitlab.gitlab.svc.cluster.local
 
 check:
   stage: test
@@ -22,8 +22,8 @@ check:
     name: ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22
     pull_policy: if-not-present
   before_script:
-    - git clone --depth 1 http://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/li-langverse/lic.git lic || true
-    - git clone --depth 1 http://gitlab-ci-token:${CI_JOB_TOKEN}@${CI_SERVER_HOST}/li-langverse/li-toml.git li-toml || true
+    - git clone --depth 1 http://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/li-langverse/lic.git lic
+    - git clone --depth 1 http://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/li-langverse/li-toml.git li-toml
   script:
     - cd lic && chmod +x scripts/build.sh && ./scripts/build.sh
     - |
