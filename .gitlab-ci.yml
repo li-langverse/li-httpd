@@ -1,5 +1,5 @@
 # Mirrors li-httpd/.github/workflows/ci.yml (check job only).
-# Uses ghcr.io/li-langverse/lic-ci image ??? configure registry auth on runner (imagePullSecrets).
+# Uses ghcr.io/li-langverse/lic-ci image — configure registry auth on runner (imagePullSecrets).
 
 stages:
   - test
@@ -40,4 +40,3 @@ check:
     - if: $CI_COMMIT_BRANCH == "main"
     - if: $CI_COMMIT_BRANCH =~ /^feat\//
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-
