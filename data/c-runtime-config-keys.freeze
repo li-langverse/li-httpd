@@ -28,6 +28,10 @@ m3_token_budget_enabled
 m3_token_budget_header
 m3_token_budget_max
 m3_token_budget_reject_over_cap
+max_header_bytes
+max_proxy_response_body_bytes
+max_request_body_bytes
+max_routes
 model_match
 proxy_all
 rate_limit_burst
@@ -39,7 +43,11 @@ stream_max_duration_sec
 tls_cert_dir
 tls_dhparam_file
 tls_enabled
+tls_manual_cert
+tls_manual_key
 tls_min_protocol
 upstream_balance
+upstream_pool
+use_native_proxy_relay
 upstream_peer
 workers
