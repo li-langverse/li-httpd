@@ -22,8 +22,10 @@ check:
     name: ghcr.io/li-langverse/lic-ci:ubuntu24-llvm22
     pull_policy: if-not-present
   before_script:
-    - git clone --depth 1 http://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/li-langverse/lic.git lic
-    - git clone --depth 1 http://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/li-langverse/li-toml.git li-toml
+    # Pin lic + li-toml to match li-toolchain.toml / migration branch (parity goldens).
+    - git clone http://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/li-langverse/lic.git lic
+    - cd lic && git checkout 5498f4697d0ca6b7d9f7d9a396b7be70fc7bdba6 && cd ..
+    - git clone --depth 1 --branch cursor/li-toml-config-migration http://oauth2:${GITLAB_TOKEN}@${CI_SERVER_HOST}/li-langverse/li-toml.git li-toml
   script:
     - cd lic && chmod +x scripts/build.sh && ./scripts/build.sh
     - |
@@ -33,10 +35,16 @@ check:
     - export LIC="$CI_PROJECT_DIR/lic/build/compiler/lic/lic"
     - export LIC_ROOT="$CI_PROJECT_DIR/lic"
     - export LI_TOML_ROOT="$CI_PROJECT_DIR/li-toml"
+    - export LI_HTTPD_ROOT="$CI_PROJECT_DIR"
     - cd "$CI_PROJECT_DIR"
+    - ln -sfn "$LI_TOML_ROOT" ../li-toml
     - bash scripts/gates/phase-a0-parse-gate.sh
     - bash scripts/gates/phase-b1-parity-gate.sh
+    - bash scripts/gates/phase-b2-serve-gate.sh
+    - bash scripts/gates/phase-c-retire-c-gate.sh
+    - bash scripts/gates/phase-d-done-gate.sh
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
     - if: $CI_COMMIT_BRANCH =~ /^feat\//
+    - if: $CI_COMMIT_BRANCH =~ /^cursor\//
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"

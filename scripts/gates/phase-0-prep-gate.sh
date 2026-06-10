@@ -46,10 +46,11 @@ if [[ -f "$LI_TOML/li.toml" ]]; then
   req_file "$LI_TOML/src/lib.li"
 fi
 
-if [[ -d "${BENCHMARKS_ROOT:-$ROOT/../benchmarks}/harness" ]]; then
-  python3 - <<'PY'
+BENCH="${BENCHMARKS_ROOT:-$ROOT/../benchmarks}"
+if [[ -d "$BENCH/harness" ]]; then
+  python3 - "$BENCH" <<'PY'
 import pathlib, sys
-root = pathlib.Path("../benchmarks")
+root = pathlib.Path(sys.argv[1])
 needle = "LI_HTTPD_CONFIG_PIPELINE"
 hits = []
 for p in root.rglob("*.py"):
