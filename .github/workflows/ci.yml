@@ -3,7 +3,7 @@ name: CI
 
 on:
   push:
-    branches: [main, "feat/**"]
+    branches: [main, "feat/**", "cursor/**"]
   pull_request:
     branches: [main, "feat/**"]
 
@@ -31,7 +31,7 @@ jobs:
         with:
           repository: li-langverse/lic
           path: lic
-          ref: 96100d5ad7732220d965f7b384b616149c73f545
+          ref: 5498f4697d0ca6b7d9f7d9a396b7be70fc7bdba6
 
       - uses: actions/checkout@v4
         with:
@@ -91,7 +91,7 @@ jobs:
         with:
           repository: li-langverse/lic
           path: lic
-          ref: 96100d5ad7732220d965f7b384b616149c73f545
+          ref: 5498f4697d0ca6b7d9f7d9a396b7be70fc7bdba6
 
       - name: Build lic + li-httpd (lic-ci container)
         run: |
@@ -139,7 +139,7 @@ jobs:
         with:
           repository: li-langverse/lic
           path: lic
-          ref: 96100d5ad7732220d965f7b384b616149c73f545
+          ref: 5498f4697d0ca6b7d9f7d9a396b7be70fc7bdba6
 
       - name: Build lic + li-httpd (lic-ci container)
         run: |

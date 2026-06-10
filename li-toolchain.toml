@@ -1,5 +1,5 @@
-# Pin lic for reproducible CI (synced from lic @ 33757321).
+# Pin lic for reproducible CI (synced from lic @ 5498f4697 — named upstream + freeze keys).
 [toolchain]
 lic_version = "0.1.0"
-lic_commit = "337573217951eee086f529f1f2452b680a28445c"
+lic_commit = "5498f4697d0ca6b7d9f7d9a396b7be70fc7bdba6"
 lit_version = "0.1.0"

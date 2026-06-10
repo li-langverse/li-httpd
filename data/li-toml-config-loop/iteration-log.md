@@ -21,3 +21,4 @@
 | 2026-06-02 | phase-d-done | code_implementer | li-toml-config-completion-gate.sh OK | Default `LI_HTTPD_CONFIG_PIPELINE=li` in benchmarks; `harness/httpd_flatten.py`; Python flatten deprecated. |
 | 2026-06-05 | phase-d-done | code_implementer | merge(main) + gates | Merged `main` (#30 edge flatten/TLS); fixed BENCHMARKS_ROOT in phase-0 gate; PR #31 dirty state resolved. |
 | 2026-06-10 | phase-d-done | code_implementer | li-toml-config-completion-gate.sh OK | Post-merge drift: synced goldens + Li flatten corpus to lic named-upstream format (#30); expanded C freeze manifest to 51 keys. |
+| 2026-06-10 | phase-d-done | code_implementer | li-toml-config-completion-gate.sh OK | CI fix: bump lic pin to 5498f4697 (named upstream + use_native_proxy_relay freeze); PR #31 `check` job was failing on stale 96100d5 goldens. |
