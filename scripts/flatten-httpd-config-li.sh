@@ -15,7 +15,22 @@ if [[ "${1:-}" == "-o" ]]; then
   shift 2
 fi
 BIN="${FLATTEN_ONE_BIN:-$ROOT/build/flatten_one}"
+need_rebuild=0
 if [[ ! -x "$BIN" ]]; then
+  need_rebuild=1
+else
+  for src in \
+    "$ROOT/li-tests/corpus/config/flatten_corpus.li" \
+    "$ROOT/li-tests/corpus/config/flatten.li" \
+    "$ROOT/li-tests/corpus/flatten_one.li" \
+    "$ROOT/scripts/build-flatten-one.sh"; do
+    if [[ -f "$src" && "$src" -nt "$BIN" ]]; then
+      need_rebuild=1
+      break
+    fi
+  done
+fi
+if (( need_rebuild )); then
   bash "$ROOT/scripts/build-flatten-one.sh"
 fi
 RAW="$(mktemp)"

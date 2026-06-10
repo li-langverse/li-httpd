@@ -23,3 +23,4 @@
 | 2026-06-10 | phase-d-done | code_implementer | li-toml-config-completion-gate.sh OK | Post-merge drift: synced goldens + Li flatten corpus to lic named-upstream format (#30); expanded C freeze manifest to 51 keys. |
 | 2026-06-10 | phase-d-done | code_implementer | li-toml-config-completion-gate.sh OK | CI fix: bump lic pin to 5498f4697 (named upstream + use_native_proxy_relay freeze); PR #31 `check` job was failing on stale 96100d5 goldens. |
 | 2026-06-10 | phase-d-done | code_implementer | merge(main) + GitLab CI | MR !1 dirty: merged main (GitLab CI primary); removed `.github/workflows/ci.yml`; pinned lic/li-toml in `.gitlab-ci.yml`; full A0–D gates. |
+| 2026-06-10 | phase-d-done | code_implementer | li-toml-config-completion-gate.sh OK | Re-verified all gates post-merge; fix stale flatten_one rebuild (corpus mtime) so B1 Li parity matches Python on agent_gateway. |
